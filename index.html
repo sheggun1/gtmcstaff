@@ -33,10 +33,10 @@
   tr:nth-child(even) td{background:#f9fafb}tr:nth-child(even) td.name{background:#f9fafb}
   .gradeA{color:#16a34a;font-weight:700}.gradeB{color:#2563eb;font-weight:700}
   .gradeC{color:#d97706;font-weight:700}.gradeD{color:#ea580c;font-weight:700}
+  .gradeE{color:#7c3aed;font-weight:700}
   .gradeF{color:#dc2626;font-weight:700}.pos{font-weight:700;color:#7c3aed}
   .empty{padding:2rem;text-align:center;color:#a0aec0;font-style:italic}
 
-  /* Config panels */
   .configbox{display:none;margin-bottom:1rem;padding:1rem;background:#fffaf0;border:1px solid #fbd38d;border-radius:8px;font-size:.8rem}
   .configbox.open{display:block}
   .configbox table{min-width:0;width:auto;font-size:.78rem}
@@ -46,7 +46,6 @@
   .configbox .tab{padding:.3rem .8rem;background:#edf2f7;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;color:#4a5568}
   .configbox .tab.active{background:#2d3748;color:#fff}
 
-  /* Wrapped subject headers (screen) */
   th.subj{
     white-space:normal!important;
     word-break:break-word;
@@ -80,7 +79,7 @@
     td, th { page-break-inside: avoid; }
     td.score, th.score { font-variant-numeric: tabular-nums; font-family: "Consolas", "Menlo", monospace; font-size: 6.3pt; }
     td.summary { font-weight: 700; }
-    .gradeA, .gradeB, .gradeC, .gradeD, .gradeF, .pos { color:#000 !important; }
+    .gradeA, .gradeB, .gradeC, .gradeD, .gradeE, .gradeF, .pos { color:#000 !important; }
     th.subj {
       max-width: 42pt !important;
       min-width: 26pt;
@@ -132,7 +131,6 @@
     <button class="orange" id="excelBtn">⬇️ Excel</button>
   </div>
 
-  <!-- Config panel with tabs -->
   <div class="configbox" id="configBox">
     <div class="tabs">
       <div class="tab active" data-tab="grades">Grade Rules</div>
@@ -146,8 +144,9 @@
         <tbody></tbody>
       </table>
       <div style="margin-top:.5rem">
-        <label>Max per test: <input id="maxTest" type="number" value="10"></label>
-        <label style="margin-left:1rem">Max all (T1+T2+T3+Exam): <input id="maxAll" type="number" value="40"></label>
+        <label>Max per test (T1/T2/T3): <input id="maxTest" type="number" value="10"></label>
+        <label style="margin-left:1rem">Max Exam: <input id="maxExam" type="number" value="70"></label>
+        <label style="margin-left:1rem">Max all (T1+T2+T3+Exam): <input id="maxAll" type="number" value="100"></label>
       </div>
     </div>
 
@@ -186,21 +185,30 @@
 </div>
 
 <script>
-/* ===== CONFIG ===== */
+/* =====================================================================
+   BACKUP KEY — must match Script Property BACKUP_API_KEY in Apps Script
+   ===================================================================== */
+const BACKUP_API_KEY = 'gtmc-2026-a7f3c9e2b8d14f60';
+
+/* ===== CONFIG — matches backend ReportTemplate.gradeScale ===== */
 const DEFAULT_CONFIG = {
   grades: [
-    { min: 75, grade: "A", remark: "Excellent performance" },
-    { min: 60, grade: "B", remark: "Very good" },
-    { min: 50, grade: "C", remark: "Good" },
-    { min: 40, grade: "D", remark: "Fair — needs improvement" },
-    { min: 0,  grade: "F", remark: "Poor — must improve" },
+    { min: 80, grade: "A", remark: "Excellent" },
+    { min: 70, grade: "B", remark: "Very Good" },
+    { min: 60, grade: "C", remark: "Good" },
+    { min: 50, grade: "D", remark: "Credit" },
+    { min: 40, grade: "E", remark: "Pass" },
+    { min: 0,  grade: "F", remark: "Needs Improvement" },
   ],
   maxPerSubjectPerAssess: 10,
-  maxPerSubjectAll: 40,
+  maxExam: 70,
+  maxPerSubjectAll: 100,
   autoRefreshMs: 30000,
-  subjectAliases: {},   // { "Christian Religious Knowledge": "C.R.K", ... }
+  subjectAliases: {},
 };
-const STORAGE_KEY = "gtmc_result_config_v1";
+
+/* Bumped to v2 because grade bands changed. Old v1 configs will be ignored. */
+const STORAGE_KEY = "gtmc_result_config_v2";
 
 function loadConfig(){
   try{
@@ -306,208 +314,271 @@ function loadExcel(file){
     rd.readAsArrayBuffer(file);
   });
 }
+
+/* Build the fetch URL with the backup key appended. */
+function buildScriptUrl(url){
+  let u = String(url || '').trim();
+  if(!u) throw new Error("Paste the Web App /exec URL first");
+  // Accept bare deployment id too
+  if(!/^https?:\/\//i.test(u)){
+    if(/^AKfycb/.test(u)) u = 'https://script.google.com/macros/s/' + u + '/exec';
+    else throw new Error("URL must start with https:// or be a deployment ID");
+  }
+  // If user pasted /dev URL, swap to /exec
+  if(/\/dev(\?|$)/.test(u)) u = u.replace(/\/dev(\?|$)/, '/exec$1');
+  // Ensure /exec if a bare macros/s/ID is given
+  if(/script\.google\.com\/macros\/s\/[^\/?#]+$/.test(u)) u += '/exec';
+  const sep = u.includes("?") ? "&" : "?";
+  return u + sep + 'sheets=all&backupKey=' + encodeURIComponent(BACKUP_API_KEY);
+}
+
 async function loadFromScript(url){
-  const u = url + (url.includes("?")?"&":"?") + "sheets=all";
-  const res = await fetch(u,{method:"GET",redirect:"follow"});
-  if(!res.ok) throw new Error("HTTP "+res.status);
-  const json = await res.json();
-  if(json.error) throw new Error(json.error);
+  const u = buildScriptUrl(url);
+  let res;
+  try{
+    res = await fetch(u, {method:"GET", redirect:"follow"});
+  }catch(e){
+    throw new Error("Network/CORS error — check deployment access is 'Anyone'");
+  }
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const text = await res.text();
+  let json;
+  try{ json = JSON.parse(text); }
+  catch(e){
+    // Most commonly: Google returned a login page (deployment not public)
+    throw new Error("Non-JSON response — deployment is not set to 'Anyone', or the /exec URL is wrong");
+  }
+  if(json && json.error) throw new Error(json.error);
   const out={}; let subjects=[];
   Object.keys(json).forEach(name=>{
-    const p=parseClassRows(json[name]);
-    if(p&&p.students.length){ out[name]=p.students; if(!subjects.length) subjects=p.subjects; }
+    const p = parseClassRows(json[name]);
+    if(p && p.students.length){
+      out[name] = p.students;
+      if(!subjects.length) subjects = p.subjects;
+    }
   });
-  return {data:out,subjects};
+  return {data:out, subjects};
 }
 
 /* ===== HELPERS ===== */
 function displayName(subj){
   return (CFG.subjectAliases && CFG.subjectAliases[subj]) ? CFG.subjectAliases[subj] : subj;
 }
-function cellValue(arr,mode){
+function cellValue(arr, mode){
   if(!arr) return null;
-  const nums=arr.filter(v=>typeof v==="number"&&!isNaN(v));
+  const nums = arr.filter(v=>typeof v==="number" && !isNaN(v));
   if(!nums.length) return null;
-  if(mode==="all") return nums.reduce((a,b)=>a+b,0);
-  const v=arr[ASSESS_IDX[mode]];
-  return (typeof v==="number"&&!isNaN(v))?v:null;
+  if(mode === "all") return nums.reduce((a,b)=>a+b, 0);
+  const v = arr[ASSESS_IDX[mode]];
+  return (typeof v==="number" && !isNaN(v)) ? v : null;
 }
 function gradeFor(pct){
-  if(pct==null) return {grade:"—",remark:"No scores yet",cls:""};
-  const sorted=[...CFG.grades].sort((a,b)=>b.min-a.min);
-  const band=sorted.find(b=>pct>=b.min)||sorted[sorted.length-1];
-  const clsMap={A:"gradeA",B:"gradeB",C:"gradeC",D:"gradeD",F:"gradeF"};
-  return {grade:band.grade,remark:band.remark,cls:clsMap[band.grade]||""};
+  if(pct == null) return {grade:"—", remark:"No scores yet", cls:""};
+  const sorted = [...CFG.grades].sort((a,b)=>b.min - a.min);
+  const band = sorted.find(b=>pct >= b.min) || sorted[sorted.length-1];
+  const clsMap = {A:"gradeA", B:"gradeB", C:"gradeC", D:"gradeD", E:"gradeE", F:"gradeF"};
+  return {grade: band.grade, remark: band.remark, cls: clsMap[band.grade] || ""};
 }
-function setStatus(m,t=""){const s=document.getElementById('status');s.textContent=m;s.className="status "+t;}
+function setStatus(m, t=""){
+  const s = document.getElementById('status');
+  s.textContent = m;
+  s.className = "status " + t;
+}
+
+/* Denominator for the current assessment mode. */
+function currentMax(mode){
+  if(mode === "all")   return CFG.maxPerSubjectAll;
+  if(mode === "Exam")  return CFG.maxExam;
+  return CFG.maxPerSubjectPerAssess;
+}
 
 /* ===== SELECTORS ===== */
 function populateSelectors(){
-  const levels=groupByLevel(DATA);
-  const lvlSel=document.getElementById('level');
-  const lvls=Object.keys(levels).sort();
-  lvlSel.innerHTML=lvls.map(l=>`<option>${l}</option>`).join('');
+  const levels = groupByLevel(DATA);
+  const lvlSel = document.getElementById('level');
+  const lvls = Object.keys(levels).sort();
+  lvlSel.innerHTML = lvls.map(l=>`<option>${l}</option>`).join('');
   updateArmOptions();
 }
 function updateArmOptions(){
-  const levels=groupByLevel(DATA);
-  const lvl=document.getElementById('level').value;
-  const armSel=document.getElementById('arm');
-  const arms=levels[lvl]?Object.keys(levels[lvl]).sort():[];
-  armSel.innerHTML=`<option value="__all__">All arms (${lvl})</option>`+arms.map(a=>`<option>${a}</option>`).join('');
+  const levels = groupByLevel(DATA);
+  const lvl = document.getElementById('level').value;
+  const armSel = document.getElementById('arm');
+  const arms = levels[lvl] ? Object.keys(levels[lvl]).sort() : [];
+  armSel.innerHTML = `<option value="__all__">All arms (${lvl})</option>` +
+                     arms.map(a=>`<option>${a}</option>`).join('');
 }
-function getStudentsFor(level,arm){
-  const levels=groupByLevel(DATA);
+function getStudentsFor(level, arm){
+  const levels = groupByLevel(DATA);
   if(!levels[level]) return [];
-  if(arm==="__all__"){
-    const merged=[];
-    Object.keys(levels[level]).forEach(a=>levels[level][a].forEach(st=>merged.push({...st,_arm:a})));
+  if(arm === "__all__"){
+    const merged = [];
+    Object.keys(levels[level]).forEach(a=>levels[level][a].forEach(st=>merged.push({...st, _arm:a})));
     return merged;
   }
-  return (levels[level][arm]||[]).map(st=>({...st,_arm:arm}));
+  return (levels[level][arm] || []).map(st=>({...st, _arm:arm}));
 }
 
 /* ===== COMPUTE ===== */
-function computeRows(level,arm,term,mode){
-  const students=getStudentsFor(level,arm);
+function computeRows(level, arm, term, mode){
+  const students = getStudentsFor(level, arm);
   const visible = SUBJECTS.filter(subj=>{
     return students.some(st=>{
-      const arr=(st[term]||{})[subj];
-      return cellValue(arr,mode) != null;
+      const arr = (st[term] || {})[subj];
+      return cellValue(arr, mode) != null;
     });
   });
-  const max = mode==="all"?CFG.maxPerSubjectAll:CFG.maxPerSubjectPerAssess;
+  const max = currentMax(mode);
   const obtainable = visible.length * max;
 
-  const rows=students.map(st=>{
-    const t=st[term]||{};
-    const per=visible.map(subj=>cellValue(t[subj]||null,mode));
-    const got=per.filter(v=>v!=null);
-    const obtained=got.length?got.reduce((a,b)=>a+b,0):null;
-    const pct=obtained==null?null:(obtained/obtainable)*100;
-    return {name:st.name,arm:st._arm,perSubj:per,obtained,obtainable,pct,grade:gradeFor(pct)};
+  const rows = students.map(st=>{
+    const t = st[term] || {};
+    const per = visible.map(subj=>cellValue(t[subj] || null, mode));
+    const got = per.filter(v=>v != null);
+    const obtained = got.length ? got.reduce((a,b)=>a+b, 0) : null;
+    const pct = (obtained == null || !obtainable) ? null : (obtained / obtainable) * 100;
+    return {name: st.name, arm: st._arm, perSubj: per, obtained, obtainable, pct, grade: gradeFor(pct)};
   });
 
-  const ranked=rows.filter(r=>r.pct!=null).sort((a,b)=>b.pct-a.pct);
-  let last=null,pos=0;
-  ranked.forEach((r,i)=>{if(r.pct!==last){pos=i+1;last=r.pct;}r.position=pos;});
-  rows.forEach(r=>{if(r.pct==null)r.position="—";});
-  return {rows, visibleSubjects:visible};
+  const ranked = rows.filter(r=>r.pct != null).sort((a,b)=>b.pct - a.pct);
+  let last = null, pos = 0;
+  ranked.forEach((r, i)=>{
+    if(r.pct !== last){ pos = i+1; last = r.pct; }
+    r.position = pos;
+  });
+  rows.forEach(r=>{ if(r.pct == null) r.position = "—"; });
+  return {rows, visibleSubjects: visible};
 }
 
 /* ===== RENDER ===== */
 function render(){
-  const level=document.getElementById('level').value;
-  const arm=document.getElementById('arm').value;
-  const term=document.getElementById('term').value;
-  const mode=document.getElementById('assess').value;
-  const q=document.getElementById('search').value.toLowerCase();
-  const scope = arm==="__all__"?`${level} — ALL ARMS`:`${level}${arm}`;
+  const level = document.getElementById('level').value;
+  const arm   = document.getElementById('arm').value;
+  const term  = document.getElementById('term').value;
+  const mode  = document.getElementById('assess').value;
+  const q     = document.getElementById('search').value.toLowerCase();
+  const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
 
   document.getElementById('title').textContent =
-    `RESULT PUBLICATION FOR ${scope} — ${mode==="all"?"ALL ASSESSMENTS":(mode==="T2"?"TEST 2":mode==="T1"?"TEST 1":mode==="T3"?"TEST 3":"EXAM")}`;
+    `RESULT PUBLICATION FOR ${scope} — ${mode === "all" ? "ALL ASSESSMENTS" :
+      mode === "T2" ? "TEST 2" : mode === "T1" ? "TEST 1" :
+      mode === "T3" ? "TEST 3" : "EXAM"}`;
 
-  const {rows,visibleSubjects} = computeRows(level,arm,term,mode);
+  const {rows, visibleSubjects} = computeRows(level, arm, term, mode);
+  const max = currentMax(mode);
 
   document.getElementById('subjHead').innerHTML =
     visibleSubjects.map(s=>`<th class="subj" title="${s}">${displayName(s)}</th>`).join('');
-  document.getElementById('subjHead').setAttribute('colspan',visibleSubjects.length);
+  document.getElementById('subjHead').setAttribute('colspan', visibleSubjects.length);
   document.getElementById('subjRow').innerHTML =
-    visibleSubjects.map(()=>`<th>/${mode==="all"?CFG.maxPerSubjectAll:CFG.maxPerSubjectPerAssess}</th>`).join('');
+    visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
 
-  LAST_RENDER={level,arm,term,mode,subjects:[...visibleSubjects],rows};
+  LAST_RENDER = {level, arm, term, mode, subjects: [...visibleSubjects], rows};
 
-  const tb=document.querySelector('#tbl tbody'); tb.innerHTML='';
-  const f=rows.filter(r=>!q||r.name.toLowerCase().includes(q));
-  const colCount=visibleSubjects.length+9;
+  const tb = document.querySelector('#tbl tbody');
+  tb.innerHTML = '';
+  const f = rows.filter(r=>!q || r.name.toLowerCase().includes(q));
+  const colCount = visibleSubjects.length + 9;
 
-  if(!f.length){tb.innerHTML=`<tr><td colspan="${colCount}" class="empty">No students for this selection.</td></tr>`;return;}
-  if(!visibleSubjects.length){tb.innerHTML=`<tr><td colspan="${colCount}" class="empty">No scores entered yet for ${scope} — ${term} / ${mode}. Subjects will appear once marks are entered.</td></tr>`;return;}
+  if(!f.length){
+    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty">No students for this selection.</td></tr>`;
+    return;
+  }
+  if(!visibleSubjects.length){
+    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty">No scores entered yet for ${scope} — ${term} / ${mode}. Subjects will appear once marks are entered.</td></tr>`;
+    return;
+  }
 
-  f.forEach((r,i)=>{
-    const tr=document.createElement('tr');
-    let h=`<td>${i+1}</td><td class="name">${r.name}</td><td class="arm">${r.arm}</td>`;
-    r.perSubj.forEach(v=>h+=`<td class="score">${v==null?"–":v}</td>`);
-    h+=`<td class="summary">${r.obtainable}</td>`;
-    h+=`<td class="summary">${r.obtained==null?"–":r.obtained}</td>`;
-    h+=`<td class="summary">${r.pct==null?"–":r.pct.toFixed(1)+"%"}</td>`;
-    h+=`<td class="summary ${r.grade.cls}">${r.grade.grade}</td>`;
-    h+=`<td class="summary pos">${r.position??"—"}</td>`;
-    h+=`<td>${r.grade.remark}</td>`;
-    tr.innerHTML=h; tb.appendChild(tr);
+  f.forEach((r, i)=>{
+    const tr = document.createElement('tr');
+    let h = `<td>${i+1}</td><td class="name">${r.name}</td><td class="arm">${r.arm}</td>`;
+    r.perSubj.forEach(v=>h += `<td class="score">${v == null ? "–" : v}</td>`);
+    h += `<td class="summary">${r.obtainable}</td>`;
+    h += `<td class="summary">${r.obtained == null ? "–" : r.obtained}</td>`;
+    h += `<td class="summary">${r.pct == null ? "–" : r.pct.toFixed(1) + "%"}</td>`;
+    h += `<td class="summary ${r.grade.cls}">${r.grade.grade}</td>`;
+    h += `<td class="summary pos">${r.position ?? "—"}</td>`;
+    h += `<td>${r.grade.remark}</td>`;
+    tr.innerHTML = h;
+    tb.appendChild(tr);
   });
 }
 
 /* ===== CONFIG UI ===== */
 function switchTab(name){
   document.querySelectorAll('.configbox .tab').forEach(t=>{
-    t.classList.toggle('active', t.dataset.tab===name);
+    t.classList.toggle('active', t.dataset.tab === name);
   });
-  document.getElementById('tab-grades').style.display = name==='grades'?'block':'none';
-  document.getElementById('tab-subjects').style.display = name==='subjects'?'block':'none';
+  document.getElementById('tab-grades').style.display   = name === 'grades'   ? 'block' : 'none';
+  document.getElementById('tab-subjects').style.display = name === 'subjects' ? 'block' : 'none';
 }
 document.querySelectorAll('.configbox .tab').forEach(t=>{
-  t.addEventListener('click',()=>switchTab(t.dataset.tab));
+  t.addEventListener('click', ()=>switchTab(t.dataset.tab));
 });
 
 function buildConfigTable(){
-  const tb=document.querySelector('#configTable tbody'); tb.innerHTML='';
-  CFG.grades.forEach((g,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td><input type="number" data-i="${i}" data-f="min" value="${g.min}"></td>
-                  <td><input data-i="${i}" data-f="grade" value="${g.grade}" style="width:50px"></td>
-                  <td><input data-i="${i}" data-f="remark" value="${g.remark}" class="wide"></td>`;
+  const tb = document.querySelector('#configTable tbody');
+  tb.innerHTML = '';
+  CFG.grades.forEach((g, i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="number" data-i="${i}" data-f="min" value="${g.min}"></td>
+      <td><input data-i="${i}" data-f="grade" value="${g.grade}" style="width:50px"></td>
+      <td><input data-i="${i}" data-f="remark" value="${g.remark}" class="wide"></td>`;
     tb.appendChild(tr);
   });
-  document.getElementById('maxTest').value=CFG.maxPerSubjectPerAssess;
-  document.getElementById('maxAll').value=CFG.maxPerSubjectAll;
+  document.getElementById('maxTest').value = CFG.maxPerSubjectPerAssess;
+  document.getElementById('maxExam').value = CFG.maxExam;
+  document.getElementById('maxAll').value  = CFG.maxPerSubjectAll;
 }
+
 function buildSubjectConfigTable(){
-  const tb=document.querySelector('#subjConfigTable tbody'); tb.innerHTML='';
+  const tb = document.querySelector('#subjConfigTable tbody');
+  tb.innerHTML = '';
   const subs = SUBJECTS.length ? SUBJECTS : [];
   if(!subs.length){
-    tb.innerHTML=`<tr><td colspan="2" style="color:#a0aec0;font-style:italic">Load data first to see subject list.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="2" style="color:#a0aec0;font-style:italic">Load data first to see subject list.</td></tr>`;
     return;
   }
   subs.forEach(s=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="text-align:left">${s}</td>
-                  <td><input class="wide" data-subj="${s}" value="${displayName(s)}" placeholder="${s}"></td>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:left">${s}</td>
+      <td><input class="wide" data-subj="${s}" value="${displayName(s)}" placeholder="${s}"></td>`;
     tb.appendChild(tr);
   });
 }
 
-document.getElementById('configBtn').addEventListener('click',()=>{
+document.getElementById('configBtn').addEventListener('click', ()=>{
   document.getElementById('configBox').classList.toggle('open');
   buildConfigTable();
   buildSubjectConfigTable();
 });
 
-document.getElementById('applyConfig').addEventListener('click',()=>{
-  // grades
+document.getElementById('applyConfig').addEventListener('click', ()=>{
   document.querySelectorAll('#configTable tbody input').forEach(inp=>{
-    const i=+inp.dataset.i,f=inp.dataset.f;
-    CFG.grades[i][f]=f==="min"?Number(inp.value):inp.value;
+    const i = +inp.dataset.i, f = inp.dataset.f;
+    CFG.grades[i][f] = f === "min" ? Number(inp.value) : inp.value;
   });
-  CFG.maxPerSubjectPerAssess=Number(document.getElementById('maxTest').value)||10;
-  CFG.maxPerSubjectAll=Number(document.getElementById('maxAll').value)||40;
+  CFG.maxPerSubjectPerAssess = Number(document.getElementById('maxTest').value) || 10;
+  CFG.maxExam                = Number(document.getElementById('maxExam').value) || 70;
+  CFG.maxPerSubjectAll       = Number(document.getElementById('maxAll').value)  || 100;
 
-  // subject aliases
-  const aliases={};
+  const aliases = {};
   document.querySelectorAll('#subjConfigTable tbody input').forEach(inp=>{
-    const orig=inp.dataset.subj;
-    const val=inp.value.trim();
-    if(val && val!==orig) aliases[orig]=val;
+    const orig = inp.dataset.subj;
+    const val = inp.value.trim();
+    if(val && val !== orig) aliases[orig] = val;
   });
-  CFG.subjectAliases=aliases;
+  CFG.subjectAliases = aliases;
 
   saveConfig();
   document.getElementById('configBox').classList.remove('open');
   render();
 });
 
-document.getElementById('resetConfig').addEventListener('click',()=>{
-  CFG=JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+document.getElementById('resetConfig').addEventListener('click', ()=>{
+  CFG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   saveConfig();
   buildConfigTable();
   buildSubjectConfigTable();
@@ -515,102 +586,131 @@ document.getElementById('resetConfig').addEventListener('click',()=>{
 });
 
 /* ===== EXPORTS ===== */
-document.getElementById('printBtn').addEventListener('click',()=>window.print());
+document.getElementById('printBtn').addEventListener('click', ()=>window.print());
 
-document.getElementById('pdfBtn').addEventListener('click',()=>{
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:"landscape",unit:"pt",format:"a3"});
-  const {level,arm,mode,subjects,rows}=LAST_RENDER;
-  if(!rows.length||!subjects.length) return alert("No data to export.");
-  const max=mode==="all"?CFG.maxPerSubjectAll:CFG.maxPerSubjectPerAssess;
-  const scope=arm==="__all__"?`${level} — ALL ARMS`:`${level}${arm}`;
-  const head=[["S/N","NAME","ARM",
+document.getElementById('pdfBtn').addEventListener('click', ()=>{
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:"landscape", unit:"pt", format:"a3"});
+  const {level, arm, mode, subjects, rows} = LAST_RENDER;
+  if(!rows.length || !subjects.length) return alert("No data to export.");
+  const max = currentMax(mode);
+  const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
+  const label = mode === "all" ? "ALL" : mode === "T2" ? "TEST 2" :
+                mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
+
+  const head = [["S/N","NAME","ARM",
     ...subjects.map(s=>`${displayName(s)}\n/${max}`),
     "Total\nObtainable","Total\nObtained","Overall\n%","Grade","Position","REMARKS"]];
-  const body=rows.map((r,i)=>{
-    const l=[i+1,r.name,r.arm];
-    r.perSubj.forEach(v=>l.push(v==null?"–":v));
-    l.push(r.obtainable,r.obtained==null?"–":r.obtained,
-      r.pct==null?"–":r.pct.toFixed(1)+"%",r.grade.grade,r.position,r.grade.remark);
+  const body = rows.map((r, i)=>{
+    const l = [i+1, r.name, r.arm];
+    r.perSubj.forEach(v=>l.push(v == null ? "–" : v));
+    l.push(r.obtainable, r.obtained == null ? "–" : r.obtained,
+           r.pct == null ? "–" : r.pct.toFixed(1) + "%",
+           r.grade.grade, r.position, r.grade.remark);
     return l;
   });
-  const W=doc.internal.pageSize.getWidth();
-  doc.setFontSize(14); doc.text(SCHOOL_NAME,W/2,30,{align:"center"});
-  doc.setFontSize(10); doc.text(SCHOOL_ADDR,W/2,46,{align:"center"});
-  doc.setFontSize(11); doc.text(`RESULT PUBLICATION FOR ${scope} — ${mode==="all"?"ALL":(mode==="T2"?"TEST 2":mode==="T1"?"TEST 1":mode==="T3"?"TEST 3":"EXAM")}`,W/2,64,{align:"center"});
-  doc.autoTable({head,body,startY:78,styles:{fontSize:6,cellPadding:2,overflow:"linebreak"},headStyles:{fillColor:[45,55,72],textColor:255,fontStyle:"bold"},columnStyles:{0:{cellWidth:20},1:{cellWidth:80},2:{cellWidth:26}},margin:{left:10,right:10}});
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFontSize(14); doc.text(SCHOOL_NAME, W/2, 30, {align:"center"});
+  doc.setFontSize(10); doc.text(SCHOOL_ADDR, W/2, 46, {align:"center"});
+  doc.setFontSize(11); doc.text(`RESULT PUBLICATION FOR ${scope} — ${label}`, W/2, 64, {align:"center"});
+  doc.autoTable({
+    head, body, startY: 78,
+    styles: {fontSize: 6, cellPadding: 2, overflow: "linebreak"},
+    headStyles: {fillColor: [45,55,72], textColor: 255, fontStyle: "bold"},
+    columnStyles: {0: {cellWidth: 20}, 1: {cellWidth: 80}, 2: {cellWidth: 26}},
+    margin: {left: 10, right: 10}
+  });
   doc.save(`${scope.replace(/[^\w]+/g,"_")}_${mode}_results.pdf`);
 });
 
-document.getElementById('excelBtn').addEventListener('click',()=>{
-  const {level,arm,mode,subjects,rows}=LAST_RENDER;
-  if(!rows.length||!subjects.length) return alert("No data to export.");
-  const max=mode==="all"?CFG.maxPerSubjectAll:CFG.maxPerSubjectPerAssess;
-  const scope=arm==="__all__"?`${level} — ALL ARMS`:`${level}${arm}`;
-  const aoa=[[SCHOOL_NAME],[SCHOOL_ADDR],[`RESULT PUBLICATION FOR ${scope} — ${mode==="all"?"ALL":(mode==="T2"?"TEST 2":mode==="T1"?"TEST 1":mode==="T3"?"TEST 3":"EXAM")}`],[],
-    ["S/N","NAME","ARM",...subjects.map(s=>`${displayName(s)} (/${max})`),"Total Obtainable","Total Obtained","Overall %","Overall Grade","Overall Position","REMARKS"]];
-  rows.forEach((r,i)=>{
-    const l=[i+1,r.name,r.arm];
-    r.perSubj.forEach(v=>l.push(v==null?"":v));
-    l.push(r.obtainable,r.obtained==null?"":r.obtained,r.pct==null?"":Number(r.pct.toFixed(1)),r.grade.grade,r.position,r.grade.remark);
+document.getElementById('excelBtn').addEventListener('click', ()=>{
+  const {level, arm, mode, subjects, rows} = LAST_RENDER;
+  if(!rows.length || !subjects.length) return alert("No data to export.");
+  const max = currentMax(mode);
+  const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
+  const label = mode === "all" ? "ALL" : mode === "T2" ? "TEST 2" :
+                mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
+
+  const aoa = [
+    [SCHOOL_NAME],
+    [SCHOOL_ADDR],
+    [`RESULT PUBLICATION FOR ${scope} — ${label}`],
+    [],
+    ["S/N","NAME","ARM",
+      ...subjects.map(s=>`${displayName(s)} (/${max})`),
+      "Total Obtainable","Total Obtained","Overall %","Overall Grade","Overall Position","REMARKS"]
+  ];
+  rows.forEach((r, i)=>{
+    const l = [i+1, r.name, r.arm];
+    r.perSubj.forEach(v=>l.push(v == null ? "" : v));
+    l.push(r.obtainable, r.obtained == null ? "" : r.obtained,
+           r.pct == null ? "" : Number(r.pct.toFixed(1)),
+           r.grade.grade, r.position, r.grade.remark);
     aoa.push(l);
   });
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols']=[{wch:5},{wch:28},{wch:6},...subjects.map(()=>({wch:14})),{wch:14},{wch:14},{wch:10},{wch:10},{wch:10},{wch:30}];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,scope);
-  XLSX.writeFile(wb,`${scope.replace(/[^\w]+/g,"_")}_${mode}_results.xlsx`);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:5},{wch:28},{wch:6},...subjects.map(()=>({wch:14})),
+                 {wch:14},{wch:14},{wch:10},{wch:10},{wch:10},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, scope);
+  XLSX.writeFile(wb, `${scope.replace(/[^\w]+/g,"_")}_${mode}_results.xlsx`);
 });
 
 /* ===== WIRING ===== */
-document.getElementById('source').addEventListener('change',e=>{
-  const isExcel=e.target.value==="excel";
-  document.getElementById('excelInputs').hidden=!isExcel;
-  document.getElementById('scriptInputs').hidden=isExcel;
-  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+document.getElementById('source').addEventListener('change', e=>{
+  const isExcel = e.target.value === "excel";
+  document.getElementById('excelInputs').hidden = !isExcel;
+  document.getElementById('scriptInputs').hidden = isExcel;
+  if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
 });
 
-document.getElementById('file').addEventListener('change',async e=>{
-  const f=e.target.files[0]; if(!f) return;
+document.getElementById('file').addEventListener('change', async e=>{
+  const f = e.target.files[0]; if(!f) return;
   try{
     setStatus("Parsing Excel…");
-    const {data,subjects}=await loadExcel(f);
-    DATA=data; SUBJECTS=subjects;
+    const {data, subjects} = await loadExcel(f);
+    DATA = data; SUBJECTS = subjects;
     if(!Object.keys(DATA).length) throw new Error("No class sheets with scores");
     populateSelectors();
-    setStatus(`Loaded ${Object.keys(DATA).length} class(es)`,"ok");
+    setStatus(`Loaded ${Object.keys(DATA).length} class(es)`, "ok");
     render();
-  }catch(err){ setStatus("Error: "+err.message,"err"); }
+  }catch(err){ setStatus("Error: " + err.message, "err"); }
 });
 
-document.getElementById('connectBtn').addEventListener('click',()=>{
-  const u=document.getElementById('webAppUrl').value.trim();
-  if(!u) return setStatus("Paste Web App /exec URL","err");
-  LAST_URL=u; connectScript(u);
+document.getElementById('connectBtn').addEventListener('click', ()=>{
+  const u = document.getElementById('webAppUrl').value.trim();
+  if(!u) return setStatus("Paste Web App /exec URL", "err");
+  LAST_URL = u;
+  connectScript(u);
   if(refreshTimer) clearInterval(refreshTimer);
   if(document.getElementById('autoRefresh').checked)
-    refreshTimer=setInterval(()=>connectScript(LAST_URL),CFG.autoRefreshMs);
+    refreshTimer = setInterval(()=>connectScript(LAST_URL), CFG.autoRefreshMs);
 });
+
 async function connectScript(url){
   try{
     setStatus("Fetching via Apps Script…");
-    const {data,subjects}=await loadFromScript(url);
-    DATA=data; SUBJECTS=subjects;
+    const {data, subjects} = await loadFromScript(url);
+    DATA = data; SUBJECTS = subjects;
     if(!Object.keys(DATA).length) throw new Error("No class tabs returned");
     populateSelectors();
-    setStatus(`Connected — ${Object.keys(DATA).length} class(es), ${new Date().toLocaleTimeString()}`,"ok");
+    setStatus(`Connected — ${Object.keys(DATA).length} class(es), ${new Date().toLocaleTimeString()}`, "ok");
     render();
-  }catch(err){ setStatus("Script error: "+err.message,"err"); }
+  }catch(err){
+    setStatus("Script error: " + err.message, "err");
+  }
 }
 
-document.getElementById('autoRefresh').addEventListener('change',e=>{
-  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
-  if(e.target.checked&&LAST_URL) refreshTimer=setInterval(()=>connectScript(LAST_URL),CFG.autoRefreshMs);
+document.getElementById('autoRefresh').addEventListener('change', e=>{
+  if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
+  if(e.target.checked && LAST_URL)
+    refreshTimer = setInterval(()=>connectScript(LAST_URL), CFG.autoRefreshMs);
 });
 
 ['level','arm','term','assess','search'].forEach(id=>{
-  const el=document.getElementById(id);
-  el.addEventListener(id==='level'?'change':'input',()=>{
-    if(id==='level') updateArmOptions();
+  const el = document.getElementById(id);
+  el.addEventListener(id === 'level' ? 'change' : 'input', ()=>{
+    if(id === 'level') updateArmOptions();
     render();
   });
 });
