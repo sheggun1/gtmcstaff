@@ -8,321 +8,295 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
+  :root{
+    --navy:#0b2f57; --navy-2:#123d6b; --navy-3:#1e3a8a;
+    --ink:#0f172a; --muted:#64748b; --line:#d5dde8; --bg:#e9edf3;
+    --gold:#c9a227;
+  }
   *{box-sizing:border-box}
   body{
     font-family:"Segoe UI","Inter",system-ui,sans-serif;
-    margin:0; padding:20px 24px;
-    background:#eef1f6; color:#0f172a;
-    font-feature-settings:"ss01","cv11";
+    margin:0; padding:18px 22px;
+    background:var(--bg); color:var(--ink);
   }
   .sheet{
-    background:#fff; border-radius:14px;
-    box-shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
-    padding:20px 22px 24px; max-width:100%;
+    background:#fff; border-radius:14px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(15,23,42,.08),0 12px 32px rgba(15,23,42,.08);
   }
-  .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:4px}
-  .sheet-head .titles{text-align:center;flex:1;min-width:220px}
-  h2{margin:0;font-size:1.05rem;letter-spacing:.6px;font-weight:800;color:#0b2f57}
-  h3{margin:2px 0 0;font-size:.78rem;font-weight:500;color:#475569;letter-spacing:.2px}
-  h4{margin:8px 0 16px;font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:#0b2f57;font-weight:800;text-align:center}
 
-  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;
-    padding:.7rem .9rem;background:#f6f8fb;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:14px}
-  .toolbar label{font-size:.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px}
-  .toolbar select,.toolbar input{padding:.4rem .55rem;border:1px solid #cbd5e1;border-radius:6px;
-    font-size:.82rem;background:#fff;color:#0f172a}
-  .toolbar select:focus,.toolbar input:focus{outline:none;border-color:#0b2f57;box-shadow:0 0 0 3px rgba(11,47,87,.12)}
-  .toolbar button{cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:.8rem;
-    padding:.45rem .8rem;color:#fff;background:#0b2f57;transition:background .15s}
+  /* ---------- Banner ---------- */
+  .banner{
+    background:linear-gradient(135deg,#0b2f57 0%,#123d6b 60%,#1e4f8f 100%);
+    color:#fff; text-align:center; padding:18px 20px 14px;
+    border-bottom:4px solid var(--gold);
+  }
+  .banner h2{margin:0;font-size:1.35rem;letter-spacing:1.6px;font-weight:800}
+  .banner h3{margin:4px 0 0;font-size:.78rem;font-weight:500;letter-spacing:1.2px;color:#cfe0f5}
+  .doc-title{
+    margin:0; padding:10px 16px; text-align:center;
+    font-size:.82rem; text-transform:uppercase; letter-spacing:1.4px;
+    font-weight:800; color:var(--navy); background:#f1f5fb;
+    border-bottom:1px solid var(--line);
+  }
+  .body{padding:16px 20px 22px}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:stretch; margin-bottom:14px;
+  }
+  .group{
+    display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+    padding:.6rem .8rem; background:#f6f8fb;
+    border:1px solid var(--line); border-radius:10px;
+  }
+  .group.grow{flex:1}
+  .group .gtitle{
+    font-size:.6rem; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--navy); width:100%; margin-bottom:-2px;
+  }
+  .toolbar label{font-size:.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px}
+  .toolbar select,.toolbar input{
+    padding:.42rem .55rem; border:1px solid #c5cfdc; border-radius:6px;
+    font-size:.82rem; background:#fff; color:var(--ink);
+  }
+  .toolbar select:focus,.toolbar input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,47,87,.14)}
+  .toolbar button{
+    cursor:pointer;border:none;border-radius:6px;font-weight:700;font-size:.8rem;
+    padding:.5rem .9rem;color:#fff;background:var(--navy);transition:background .15s
+  }
   .toolbar button:hover{background:#0f3f73}
-  .toolbar button.sec{background:#fff;color:#0b2f57;border:1px solid #cbd5e1}
-  .toolbar button.sec:hover{background:#f1f5f9}
+  .toolbar button.sec{background:#fff;color:var(--navy);border:1px solid #c5cfdc}
+  .toolbar button.sec:hover{background:#eef2f8}
   .toolbar button.green{background:#0f7a3d}
   .toolbar button.green:hover{background:#0b6130}
   .toolbar button.orange{background:#b45309}
   .toolbar button.orange:hover{background:#92400e}
-
-  .status{font-size:.75rem;color:#64748b;padding:.3rem .6rem;font-weight:600}
+  .status{font-size:.75rem;color:var(--muted);font-weight:600;padding:0 .3rem}
   .status.ok{color:#0f7a3d}
   .status.err{color:#b91c1c}
 
-  /* ---------- BROADSHEET ---------- */
+  /* ---------- Broadsheet ---------- */
   .scroll{
-    overflow:auto; border:1px solid #cbd5e1; border-radius:10px;
-    max-height:calc(100vh - 260px);
-    background:#fff;
+    overflow:auto; border:1px solid #b9c4d3; border-radius:10px;
+    max-height:calc(100vh - 330px); background:#fff;
   }
   table.broadsheet{
     border-collapse:separate; border-spacing:0;
-    width:100%; min-width:900px; /* reduced min-width since scores are narrower */
-    font-size:.78rem; table-layout:auto;
+    width:100%; font-size:.82rem;
   }
   table.broadsheet thead th{
     position:sticky; top:0; z-index:3;
-    background:#0b2f57; color:#fff;
-    font-weight:700; font-size:.66rem; letter-spacing:.4px;
-    text-transform:uppercase;
-    padding:7px 6px; text-align:center;
-    border-bottom:1px solid #0b2f57;
-    white-space:nowrap;
+    background:var(--navy); color:#fff;
+    font-weight:700; font-size:.68rem; letter-spacing:.4px; text-transform:uppercase;
+    padding:8px 6px; text-align:center; white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);
+    border-bottom:1px solid rgba(255,255,255,.18);
   }
-  /* ----- Vertical subject headers ----- */
+  /* Subject header cells: rotated text reading bottom-to-top */
   table.broadsheet thead th.subj{
-    background:#123d6b;
-    white-space:normal; word-break:break-word;
-    /* vertical text via writing-mode */
-    writing-mode:vertical-rl;
-    transform:rotate(180deg);          /* so text reads bottom-to-top */
-    max-width:32px; min-width:32px; width:32px;
-    height:90px;                        /* fixed height for the vertical stack */
-    padding:4px 2px;
-    font-size:.58rem;
-    line-height:1.2;
-    vertical-align:bottom;
-    text-align:left;                    /* alignment inside vertical */
-    overflow:hidden;
+    background:var(--navy-2);
+    height:150px; width:34px; min-width:34px; max-width:34px;
+    padding:6px 0; vertical-align:bottom; text-align:center;
   }
   table.broadsheet thead th.subj .subj-label{
     display:inline-block;
-    writing-mode:vertical-rl;
-    transform:rotate(180deg);
-    white-space:nowrap;
-    max-height:80px;                    /* limit vertical length */
-    overflow:hidden;
-    text-overflow:ellipsis;
-    font-size:.58rem;
-    letter-spacing:.2px;
+    writing-mode:vertical-rl; transform:rotate(180deg);
+    white-space:nowrap; font-size:.72rem; font-weight:800; letter-spacing:.3px;
+    line-height:1.1; text-transform:uppercase;
   }
-  /* second header row (score /max) */
-  table.broadsheet thead tr:nth-child(2) th{
-    background:#1e3a8a; font-size:.58rem; padding:2px 2px;
-    min-width:32px; width:32px;
-    writing-mode:horizontal-tb;         /* reset for the /max row */
-    transform:none;
-    height:auto;
-    white-space:nowrap;
+  table.broadsheet thead tr.max-row th{
+    top:150px; background:var(--navy-3); font-size:.62rem; padding:3px 0;
+    min-width:34px; width:34px;
   }
+  table.broadsheet thead th.c-sn{left:0;z-index:5}
+  table.broadsheet thead th.c-name{left:40px;z-index:5;min-width:220px;text-align:left;padding-left:12px}
+  table.broadsheet thead th.c-remark{text-align:left;padding-left:10px;min-width:120px}
 
   table.broadsheet tbody td{
-    border-bottom:1px solid #e2e8f0;
-    padding:6px 2px;                    /* reduced padding for score cells */
-    text-align:center;
-    white-space:nowrap;
+    border-bottom:1px solid #dfe6ef; border-right:1px solid #eef2f7;
+    padding:7px 2px; text-align:center; white-space:nowrap;
     font-variant-numeric:tabular-nums;
   }
-  table.broadsheet tbody tr:nth-child(even) td{ background:#f8fafc; }
-  table.broadsheet tbody tr:hover td{ background:#eff6ff; }
+  table.broadsheet tbody tr:nth-child(even) td{background:#f6f9fd}
+  table.broadsheet tbody tr:hover td{background:#e8f1fd}
 
   table.broadsheet td.c-sn{
-    position:sticky; left:0; z-index:2;
-    background:inherit;
-    width:36px; min-width:36px;
-    color:#64748b; font-weight:600;
-    border-right:1px solid #e2e8f0;
-  }
-  table.broadsheet thead th.c-sn{
-    position:sticky; left:0; z-index:4;
-    background:#0b2f57;
-    min-width:36px;
-    writing-mode:horizontal-tb; transform:none;
-    height:auto;
+    position:sticky;left:0;z-index:2;background:inherit;
+    width:40px;min-width:40px;color:var(--muted);font-weight:700;
   }
   table.broadsheet td.c-name{
-    position:sticky; left:36px; z-index:2;
-    background:inherit;
-    text-align:left;
-    font-weight:900;                    /* BOLD */
-    font-size:.95rem;                   /* BIGGER */
-    color:#0f172a;
-    min-width:200px;                    /* wider for big names */
-    padding-left:12px;
-    border-right:1px solid #e2e8f0;
-    white-space:nowrap;
+    position:sticky;left:40px;z-index:2;background:inherit;
+    text-align:left;font-weight:900;font-size:.95rem;color:var(--ink);
+    min-width:220px;padding-left:12px;border-right:2px solid #cbd5e1;
   }
-  table.broadsheet thead th.c-name{
-    position:sticky; left:36px; z-index:4;
-    background:#0b2f57;
-    min-width:200px;
-    writing-mode:horizontal-tb; transform:none;
-    height:auto;
-  }
-  table.broadsheet td.c-arm{
-    width:44px; min-width:36px; color:#64748b; font-size:.7rem; font-weight:600;
-  }
-  table.broadsheet thead th.c-arm{
-    background:#0b2f57; width:44px; min-width:36px;
-    writing-mode:horizontal-tb; transform:none; height:auto;
-  }
-
-  /* score cells — compact */
-  table.broadsheet td.c-score{ width:32px; min-width:32px; padding:6px 2px; }
-  table.broadsheet td.c-score.empty{ color:#cbd5e1; }
+  table.broadsheet td.c-arm{width:46px;min-width:40px;color:#475569;font-size:.74rem;font-weight:700}
+  /* SCORES: bold */
+  table.broadsheet td.c-score{width:34px;min-width:34px;font-weight:800;font-size:.9rem;color:var(--ink)}
+  table.broadsheet td.c-score.empty{color:#b8c3d1;font-weight:700}
   table.broadsheet td.c-summary{
-    background:#eef6ff;
-    font-weight:700; color:#0b2f57;
-    border-left:1px solid #cbd5e1;
-    min-width:60px; padding:6px 6px;
-    writing-mode:horizontal-tb; transform:none;
+    background:#eaf2fc !important;font-weight:800;color:var(--navy);
+    min-width:62px;padding:7px 6px;border-left:1px solid #c5d3e6;
   }
-  table.broadsheet thead th.c-summary{
-    background:#123d6b; border-left:1px solid #1e3a8a;
-    writing-mode:horizontal-tb; transform:none; height:auto;
-  }
-  table.broadsheet td.c-pct{ font-weight:800; color:#0b2f57; min-width:60px; }
-  table.broadsheet td.c-grade{ font-weight:800; min-width:40px; }
-  table.broadsheet td.c-pos{ font-weight:800; color:#6d28d9; min-width:50px; }
-  table.broadsheet td.c-remark{ text-align:left; font-weight:500; color:#334155; padding-left:10px; min-width:110px; }
-  table.broadsheet thead th.c-remark{ text-align:left; padding-left:10px; min-width:110px; writing-mode:horizontal-tb; transform:none; height:auto; }
+  table.broadsheet td.c-pct{min-width:64px}
+  table.broadsheet td.c-grade{font-weight:900;font-size:.95rem;min-width:44px}
+  table.broadsheet td.c-pos{color:#6d28d9;font-weight:900;min-width:56px}
+  table.broadsheet td.c-remark{text-align:left;font-weight:700;color:#334155;padding-left:10px;min-width:120px}
 
-  .gradeA{ color:#0f7a3d; }
-  .gradeB{ color:#1d4ed8; }
-  .gradeC{ color:#b45309; }
-  .gradeD{ color:#c2410c; }
-  .gradeE{ color:#6d28d9; }
-  .gradeF{ color:#b91c1c; }
+  .gradeA{color:#0f7a3d}.gradeB{color:#1d4ed8}.gradeC{color:#b45309}
+  .gradeD{color:#c2410c}.gradeE{color:#6d28d9}.gradeF{color:#b91c1c}
+  td.empty-msg{padding:2.5rem 1rem;text-align:center;color:#94a3b8;font-style:italic;font-size:.9rem}
 
-  .empty{padding:2.5rem 1rem;text-align:center;color:#94a3b8;font-style:italic;font-size:.85rem}
-
-  /* Config panel */
+  /* ---------- Config panel ---------- */
   .configbox{display:none;margin-bottom:14px;padding:1rem;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;font-size:.8rem}
   .configbox.open{display:block}
-  .configbox table{min-width:0;width:auto;font-size:.78rem;border-collapse:collapse}
+  .configbox table{width:auto;font-size:.78rem;border-collapse:collapse}
   .configbox th,.configbox td{border:1px solid #fcd34d;padding:.25rem .5rem;text-align:left}
-  .configbox input{width:70px;padding:.3rem .4rem}
+  .configbox input{width:70px;padding:.3rem .4rem;border:1px solid #cbd5e1;border-radius:5px}
   .configbox input.wide{width:260px}
   .configbox .tabs{display:flex;gap:.4rem;margin-bottom:.9rem}
   .configbox .tab{padding:.35rem .8rem;background:#f1f5f9;border-radius:6px;cursor:pointer;font-size:.76rem;font-weight:700;color:#475569}
-  .configbox .tab.active{background:#0b2f57;color:#fff}
+  .configbox .tab.active{background:var(--navy);color:#fff}
+  .configbox button{cursor:pointer;border:none;border-radius:6px;font-weight:700;padding:.45rem .9rem;background:var(--navy);color:#fff}
+  .configbox button.sec{background:#fff;color:var(--navy);border:1px solid #c5cfdc}
 
-  @media print {
-    @page { size: A3 landscape; margin: 8mm 6mm; }
-    body { background:#fff; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .sheet { box-shadow:none; border-radius:0; padding:0; }
-    .toolbar, .configbox { display:none !important; }
-    h2 { font-size: 12pt; } h3 { font-size: 9pt; } h4 { font-size: 9pt; margin:4pt 0 6pt; }
-    .scroll { overflow:visible; border:none; max-height:none; }
-    table.broadsheet { width:100%; min-width:0; font-size:6.5pt; }
-    table.broadsheet thead th { position:static !important; background:#d9d9d9 !important; color:#000 !important; font-size:6pt; }
-    table.broadsheet thead th.subj {
-      writing-mode:vertical-rl;
-      transform:rotate(180deg);
-      height:100pt;
-      min-width:24pt; width:24pt; max-width:24pt;
-      font-size:6pt;
-      padding:2pt 1pt;
+  /* ---------- PRINT ---------- */
+  @media print{
+    @page{size:A3 landscape;margin:8mm 7mm}
+    html,body{background:#fff !important;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sheet{box-shadow:none;border-radius:0}
+    .toolbar,.configbox{display:none !important}
+    .body{padding:0}
+    .banner{background:#fff !important;color:#000 !important;border-bottom:2pt solid #000;padding:2pt 0 4pt}
+    .banner h2{font-size:15pt;color:#000}
+    .banner h3{font-size:9.5pt;color:#000}
+    .doc-title{background:#fff;color:#000;font-size:10pt;padding:4pt 0;border-bottom:none}
+    .scroll{overflow:visible;border:none;max-height:none;border-radius:0}
+    table.broadsheet{width:100%;min-width:0;font-size:8pt;border-collapse:collapse}
+    table.broadsheet thead{display:table-header-group}
+    table.broadsheet tr{page-break-inside:avoid}
+    table.broadsheet thead th{
+      position:static !important;
+      background:#d9d9d9 !important;color:#000 !important;
+      border:0.6pt solid #000 !important;
+      font-size:7.5pt;font-weight:800;padding:2pt 1.5pt;
     }
-    table.broadsheet thead th.subj .subj-label { max-height:90pt; font-size:6pt; }
-    table.broadsheet thead tr:nth-child(2) th {
-      writing-mode:horizontal-tb; transform:none; height:auto;
-      min-width:24pt; width:24pt; font-size:6pt;
+    table.broadsheet thead th.subj{
+      height:135pt;width:22pt;min-width:22pt;max-width:22pt;padding:4pt 0;
+      vertical-align:bottom;background:#cfcfcf !important;
     }
-    table.broadsheet td { position:static !important; border:0.4pt solid #555; padding:1.2pt 1.5pt; }
-    table.broadsheet td.c-name { background:#fff !important; font-size:9pt; font-weight:900; }
-    table.broadsheet td.c-summary, table.broadsheet thead th.c-summary { background:#e5e5e5 !important; color:#000 !important; }
-    table.broadsheet tbody tr:nth-child(even) td { background:#f2f2f2 !important; }
-    thead { display:table-header-group; } tr { page-break-inside:avoid; }
-    .gradeA,.gradeB,.gradeC,.gradeD,.gradeE,.gradeF { color:#000 !important; }
-    table.broadsheet td.c-score { width:24pt; min-width:24pt; }
+    table.broadsheet thead th.subj .subj-label{
+      font-size:9pt;font-weight:900;color:#000;letter-spacing:.2px;
+    }
+    table.broadsheet thead tr.max-row th{background:#e6e6e6 !important;font-size:7pt;padding:1pt 0}
+    table.broadsheet td{
+      position:static !important;
+      border:0.6pt solid #000 !important;
+      padding:2pt 1.5pt;font-size:8.5pt;
+      background:#fff !important;color:#000 !important;
+    }
+    table.broadsheet tbody tr:nth-child(even) td{background:#f0f0f0 !important}
+    table.broadsheet td.c-name{font-size:9.5pt;font-weight:900;min-width:0}
+    table.broadsheet td.c-score{font-weight:900;font-size:9pt;width:22pt;min-width:22pt}
+    table.broadsheet td.c-score.empty{color:#777 !important}
+    table.broadsheet td.c-summary{background:#e2e2e2 !important;font-weight:900;color:#000 !important}
+    table.broadsheet td.c-sn,table.broadsheet td.c-arm,table.broadsheet td.c-remark{color:#000 !important;font-weight:700}
+    .gradeA,.gradeB,.gradeC,.gradeD,.gradeE,.gradeF{color:#000 !important}
   }
 </style>
 </head>
 <body>
 <div class="sheet">
-  <div class="sheet-head">
-    <div class="titles">
-      <h2>GREATER TOMORROW MODEL COLLEGE</h2>
-      <h3>EMBASSY ISLAND, MOFERERE AREA, ADO-EKITI</h3>
-    </div>
+  <div class="banner">
+    <h2>GREATER TOMORROW MODEL COLLEGE</h2>
+    <h3>EMBASSY ISLAND, MOFERERE AREA, ADO-EKITI</h3>
   </div>
-  <h4 id="title">BROADSHEET</h4>
+  <h4 class="doc-title" id="title">BROADSHEET</h4>
 
-  <div class="toolbar">
-    <label>Source:</label>
-    <select id="source">
-      <option value="excel">📁 Upload Excel</option>
-      <option value="script">🌐 Google Sheet (Apps Script)</option>
-    </select>
-    <span id="excelInputs"><input type="file" id="file" accept=".xlsx,.xls"></span>
-    <span id="scriptInputs" hidden>
-      <input id="webAppUrl" placeholder="Paste Web App /exec URL…" style="width:320px">
-      <button class="sec" id="connectBtn">Connect</button>
-      <label style="margin-left:.5rem;display:flex;align-items:center;gap:.3rem">
-        <input type="checkbox" id="autoRefresh" checked> Auto-refresh
-      </label>
-    </span>
-    <label style="margin-left:auto">Level:</label><select id="level"></select>
-    <label>Arm:</label><select id="arm"></select>
-    <label>Term:</label>
-    <select id="term"><option>Term1</option><option>Term2</option><option>Term3</option></select>
-    <label>Assessment:</label>
-    <select id="assess">
-      <option value="T2">Test 2</option><option value="T1">Test 1</option>
-      <option value="T3">Test 3</option><option value="Exam">Exam</option>
-      <option value="all">All (T1+T2+T3+Exam)</option>
-    </select>
-    <input id="search" placeholder="Search name…" style="width:130px">
-    <span id="status" class="status">No data loaded</span>
-    <button class="sec" id="configBtn">⚙️ Settings</button>
-    <button class="green" id="printBtn">🖨️ Print</button>
-    <button class="orange" id="pdfBtn">⬇️ PDF</button>
-    <button class="orange" id="excelBtn">⬇️ Excel</button>
-  </div>
+  <div class="body">
+    <div class="toolbar">
+      <div class="group">
+        <span class="gtitle">Data Source</span>
+        <select id="source">
+          <option value="excel">📁 Upload Excel</option>
+          <option value="script">🌐 Google Sheet (Apps Script)</option>
+        </select>
+        <span id="excelInputs"><input type="file" id="file" accept=".xlsx,.xls"></span>
+        <span id="scriptInputs" hidden>
+          <input id="webAppUrl" placeholder="Paste Web App /exec URL…" style="width:300px">
+          <button class="sec" id="connectBtn">Connect</button>
+          <label style="display:inline-flex;align-items:center;gap:.3rem">
+            <input type="checkbox" id="autoRefresh" checked> Auto-refresh
+          </label>
+        </span>
+      </div>
 
-  <div class="configbox" id="configBox">
-    <div class="tabs">
-      <div class="tab active" data-tab="grades">Grade Rules</div>
-      <div class="tab" data-tab="subjects">Subject Names</div>
-    </div>
+      <div class="group grow">
+        <span class="gtitle">Filters</span>
+        <label>Level</label><select id="level"></select>
+        <label>Arm</label><select id="arm"></select>
+        <label>Term</label>
+        <select id="term"><option>Term1</option><option>Term2</option><option>Term3</option></select>
+        <label>Assessment</label>
+        <select id="assess">
+          <option value="T2">Test 2</option><option value="T1">Test 1</option>
+          <option value="T3">Test 3</option><option value="Exam">Exam</option>
+          <option value="all">All (T1+T2+T3+Exam)</option>
+        </select>
+        <input id="search" placeholder="Search name…" style="width:140px">
+        <span id="status" class="status">No data loaded</span>
+      </div>
 
-    <div id="tab-grades">
-      <strong>Grade &amp; Remark Bands</strong> — lower bound (%) → grade → remark.
-      <table id="configTable">
-        <thead><tr><th>Min %</th><th>Grade</th><th>Remark</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div style="margin-top:.5rem">
-        <label>Max per test (T1/T2/T3): <input id="maxTest" type="number" value="10"></label>
-        <label style="margin-left:1rem">Max Exam: <input id="maxExam" type="number" value="70"></label>
-        <label style="margin-left:1rem">Max all (T1+T2+T3+Exam): <input id="maxAll" type="number" value="100"></label>
+      <div class="group">
+        <span class="gtitle">Actions</span>
+        <button class="sec" id="configBtn">⚙️ Settings</button>
+        <button class="green" id="printBtn">🖨️ Print</button>
+        <button class="orange" id="pdfBtn">⬇️ PDF</button>
+        <button class="orange" id="excelBtn">⬇️ Excel</button>
       </div>
     </div>
 
-    <div id="tab-subjects" style="display:none">
-      <strong>Subject Name Overrides</strong> — edit the display name. Original name shown on the left.
-      <table id="subjConfigTable" style="margin-top:.5rem">
-        <thead><tr><th>Original Name (from sheet)</th><th>Display Name</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div style="margin-top:.5rem;color:#718096;font-size:.75rem">
-        Leave the display name empty to use the original. Changes apply to screen, print, PDF, and Excel.
+    <div class="configbox" id="configBox">
+      <div class="tabs">
+        <div class="tab active" data-tab="grades">Grade Rules</div>
+        <div class="tab" data-tab="subjects">Subject Names</div>
+      </div>
+
+      <div id="tab-grades">
+        <strong>Grade &amp; Remark Bands</strong> — lower bound (%) → grade → remark.
+        <table id="configTable">
+          <thead><tr><th>Min %</th><th>Grade</th><th>Remark</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="margin-top:.5rem">
+          <label>Max per test (T1/T2/T3): <input id="maxTest" type="number" value="10"></label>
+          <label style="margin-left:1rem">Max Exam: <input id="maxExam" type="number" value="70"></label>
+          <label style="margin-left:1rem">Max all (T1+T2+T3+Exam): <input id="maxAll" type="number" value="100"></label>
+        </div>
+      </div>
+
+      <div id="tab-subjects" style="display:none">
+        <strong>Subject Name Overrides</strong> — edit the display name. Original name shown on the left.
+        <table id="subjConfigTable" style="margin-top:.5rem">
+          <thead><tr><th>Original Name (from sheet)</th><th>Display Name</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="margin-top:.5rem;color:#718096;font-size:.75rem">
+          Leave the display name empty to use the original. Changes apply to screen, print, PDF, and Excel.
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <button class="sec" id="applyConfig">Apply</button>
+        <button id="resetConfig" style="margin-left:.5rem">Reset All</button>
       </div>
     </div>
 
-    <div style="margin-top:1rem">
-      <button class="sec" id="applyConfig">Apply</button>
-      <button id="resetConfig" style="margin-left:.5rem">Reset All</button>
+    <div class="scroll">
+      <table id="tbl" class="broadsheet">
+        <thead id="thead"></thead>
+        <tbody></tbody>
+      </table>
     </div>
-  </div>
-
-  <div class="scroll">
-    <table id="tbl" class="broadsheet">
-      <thead>
-        <tr>
-          <th class="c-sn" rowspan="2">S/N</th>
-          <th class="c-name" rowspan="2">Student Name</th>
-          <th class="c-arm" rowspan="2">Arm</th>
-          <th colspan="0" id="subjHead"></th>
-          <th class="c-summary" rowspan="2">Obtained</th>
-          <th class="c-summary" rowspan="2">÷ by</th>
-          <th class="c-summary" rowspan="2">Overall<br>%</th>
-          <th class="c-summary" rowspan="2">Grade</th>
-          <th class="c-summary" rowspan="2">Position</th>
-          <th class="c-remark" rowspan="2">Remark</th>
-        </tr>
-        <tr id="subjRow"></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
   </div>
 </div>
 
@@ -566,7 +540,6 @@ function computeRows(level, arm, term, mode){
   const students = getStudentsFor(level, arm);
   const max = currentMax(mode);
 
-  // Union: any subject any student in the class has a score for
   const visible = SUBJECTS.filter(subj => {
     return students.some(st => {
       const arr = (st[term] || {})[subj];
@@ -578,10 +551,9 @@ function computeRows(level, arm, term, mode){
     const t = st[term] || {};
     const per = visible.map(subj => cellValue(t[subj] || null, mode));
 
-    // Per-student divisor: only subjects they actually sat
     const attempted = per.filter(v => v != null);
     const obtained  = attempted.length ? attempted.reduce((a,b)=>a+b, 0) : null;
-    const attMax    = attempted.length * max;   // 9 → 90, 10 → 100, 8 → 80
+    const attMax    = attempted.length * max;
     const pct = (obtained == null || attMax === 0)
       ? null
       : (obtained / attMax) * 100;
@@ -599,7 +571,6 @@ function computeRows(level, arm, term, mode){
     };
   });
 
-  // Rank by per-student %, with 0.1-precision ties so display matches ranking
   const ranked = rows.filter(r => r.pct != null).sort((a,b)=>b.pct - a.pct);
   let lastKey = null, pos = 0;
   ranked.forEach((r, i) => {
@@ -610,6 +581,27 @@ function computeRows(level, arm, term, mode){
   rows.forEach(r => { if(r.position == null) r.position = '—'; });
 
   return { rows, visibleSubjects: visible };
+}
+
+/* ===== TABLE HEADER (subjects written vertically; clear on screen & print) ===== */
+function buildHead(visibleSubjects, max){
+  const subs = visibleSubjects.map(s =>
+    `<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
+  const maxCells = visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
+  document.getElementById('thead').innerHTML =
+    `<tr>
+      <th class="c-sn" rowspan="2">S/N</th>
+      <th class="c-name" rowspan="2">Student Name</th>
+      <th class="c-arm" rowspan="2">Arm</th>
+      ${subs}
+      <th class="c-summary" rowspan="2">Obtained</th>
+      <th class="c-summary" rowspan="2">÷ by</th>
+      <th class="c-summary" rowspan="2">Overall<br>%</th>
+      <th class="c-summary" rowspan="2">Grade</th>
+      <th class="c-summary" rowspan="2">Position</th>
+      <th class="c-remark" rowspan="2">Remark</th>
+    </tr>
+    <tr class="max-row">${maxCells}</tr>`;
 }
 
 /* ===== RENDER ===== */
@@ -629,12 +621,7 @@ function render(){
 
   const {rows, visibleSubjects} = computeRows(level, arm, term, mode);
 
-  // Subject headers: vertical text with subj-label span
-  document.getElementById('subjHead').innerHTML =
-    visibleSubjects.map(s=>`<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
-  document.getElementById('subjHead').setAttribute('colspan', visibleSubjects.length);
-  document.getElementById('subjRow').innerHTML =
-    visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
+  buildHead(visibleSubjects, max);
 
   LAST_RENDER = { level, arm, term, mode, subjects: [...visibleSubjects], rows, max };
 
@@ -644,11 +631,11 @@ function render(){
   const colCount = visibleSubjects.length + 9;
 
   if(!f.length){
-    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty">No students for this selection.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty-msg">No students for this selection.</td></tr>`;
     return;
   }
   if(!visibleSubjects.length){
-    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty">No scores entered yet for ${esc(scope)} — ${esc(term)} / ${esc(mode)}.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${colCount}" class="empty-msg">No scores entered yet for ${esc(scope)} — ${esc(term)} / ${esc(mode)}.</td></tr>`;
     return;
   }
 
