@@ -160,9 +160,9 @@
     h2 { font-size: 12pt; } h3 { font-size: 9pt; } h4 { font-size: 9pt; margin:4pt 0 6pt; }
     .scroll { overflow:visible; border:none; max-height:none; }
     table.broadsheet { width:100%; min-width:0; font-size:6.5pt; }
-    table.broadsheet thead th { position:static !important; background:#d9d9d9 !important; color:#000 !important; font-size:6pt; }
+    table.broadsheet thead th { position:static !important; background:#d9d9d9 !important; color:#000 !important; font-size:6pt; }\n    table.broadsheet thead th.subj { writing-mode:vertical-rl; height:105pt; min-width:24pt; width:24pt; max-width:24pt; }
     table.broadsheet td { position:static !important; border:0.4pt solid #555; padding:1.2pt 1.5pt; }
-    table.broadsheet td.c-name { background:#fff !important; font-size:6.8pt; }
+    table.broadsheet td.c-name { background:#fff !important; font-size:8.5pt; font-weight:900; }
     table.broadsheet td.c-summary, table.broadsheet thead th.c-summary { background:#e5e5e5 !important; color:#000 !important; }
     table.broadsheet tbody tr:nth-child(even) td { background:#f2f2f2 !important; }
     thead { display:table-header-group; } tr { page-break-inside:avoid; }
@@ -574,7 +574,7 @@ function render(){
   const {rows, visibleSubjects} = computeRows(level, arm, term, mode);
 
   document.getElementById('subjHead').innerHTML =
-    visibleSubjects.map(s=>`<th class="subj" title="${esc(s)}">${esc(displayName(s))}</th>`).join('');
+    visibleSubjects.map(s=>`<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
   document.getElementById('subjHead').setAttribute('colspan', visibleSubjects.length);
   document.getElementById('subjRow').innerHTML =
     visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
