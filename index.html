@@ -54,7 +54,7 @@
   }
   table.broadsheet{
     border-collapse:separate; border-spacing:0;
-    width:100%; min-width:1200px;
+    width:100%; min-width:900px; /* reduced min-width since scores are narrower */
     font-size:.78rem; table-layout:auto;
   }
   table.broadsheet thead th{
@@ -66,20 +66,46 @@
     border-bottom:1px solid #0b2f57;
     white-space:nowrap;
   }
+  /* ----- Vertical subject headers ----- */
   table.broadsheet thead th.subj{
     background:#123d6b;
     white-space:normal; word-break:break-word;
-    max-width:70px; min-width:44px;
-    line-height:1.1; vertical-align:bottom;
-    font-size:.6rem;
+    /* vertical text via writing-mode */
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);          /* so text reads bottom-to-top */
+    max-width:32px; min-width:32px; width:32px;
+    height:90px;                        /* fixed height for the vertical stack */
+    padding:4px 2px;
+    font-size:.58rem;
+    line-height:1.2;
+    vertical-align:bottom;
+    text-align:left;                    /* alignment inside vertical */
+    overflow:hidden;
   }
+  table.broadsheet thead th.subj .subj-label{
+    display:inline-block;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    white-space:nowrap;
+    max-height:80px;                    /* limit vertical length */
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:.58rem;
+    letter-spacing:.2px;
+  }
+  /* second header row (score /max) */
   table.broadsheet thead tr:nth-child(2) th{
-    background:#1e3a8a; font-size:.58rem; padding:4px 6px;
+    background:#1e3a8a; font-size:.58rem; padding:2px 2px;
+    min-width:32px; width:32px;
+    writing-mode:horizontal-tb;         /* reset for the /max row */
+    transform:none;
+    height:auto;
+    white-space:nowrap;
   }
 
   table.broadsheet tbody td{
     border-bottom:1px solid #e2e8f0;
-    padding:6px 6px;
+    padding:6px 2px;                    /* reduced padding for score cells */
     text-align:center;
     white-space:nowrap;
     font-variant-numeric:tabular-nums;
@@ -90,47 +116,63 @@
   table.broadsheet td.c-sn{
     position:sticky; left:0; z-index:2;
     background:inherit;
-    width:44px; min-width:44px;
+    width:36px; min-width:36px;
     color:#64748b; font-weight:600;
     border-right:1px solid #e2e8f0;
   }
   table.broadsheet thead th.c-sn{
     position:sticky; left:0; z-index:4;
     background:#0b2f57;
+    min-width:36px;
+    writing-mode:horizontal-tb; transform:none;
+    height:auto;
   }
   table.broadsheet td.c-name{
-    position:sticky; left:44px; z-index:2;
+    position:sticky; left:36px; z-index:2;
     background:inherit;
-    text-align:left; font-weight:700; color:#0f172a;
-    min-width:180px; padding-left:10px;
+    text-align:left;
+    font-weight:900;                    /* BOLD */
+    font-size:.95rem;                   /* BIGGER */
+    color:#0f172a;
+    min-width:200px;                    /* wider for big names */
+    padding-left:12px;
     border-right:1px solid #e2e8f0;
+    white-space:nowrap;
   }
   table.broadsheet thead th.c-name{
-    position:sticky; left:44px; z-index:4;
+    position:sticky; left:36px; z-index:4;
     background:#0b2f57;
+    min-width:200px;
+    writing-mode:horizontal-tb; transform:none;
+    height:auto;
   }
   table.broadsheet td.c-arm{
-    width:56px; color:#64748b; font-size:.7rem; font-weight:600;
+    width:44px; min-width:36px; color:#64748b; font-size:.7rem; font-weight:600;
   }
   table.broadsheet thead th.c-arm{
-    background:#0b2f57; width:56px;
+    background:#0b2f57; width:44px; min-width:36px;
+    writing-mode:horizontal-tb; transform:none; height:auto;
   }
 
-  table.broadsheet td.c-score{ width:44px; min-width:44px; }
+  /* score cells — compact */
+  table.broadsheet td.c-score{ width:32px; min-width:32px; padding:6px 2px; }
   table.broadsheet td.c-score.empty{ color:#cbd5e1; }
   table.broadsheet td.c-summary{
     background:#eef6ff;
     font-weight:700; color:#0b2f57;
     border-left:1px solid #cbd5e1;
+    min-width:60px; padding:6px 6px;
+    writing-mode:horizontal-tb; transform:none;
   }
   table.broadsheet thead th.c-summary{
     background:#123d6b; border-left:1px solid #1e3a8a;
+    writing-mode:horizontal-tb; transform:none; height:auto;
   }
-  table.broadsheet td.c-pct{ font-weight:800; color:#0b2f57; }
-  table.broadsheet td.c-grade{ font-weight:800; }
-  table.broadsheet td.c-pos{ font-weight:800; color:#6d28d9; }
-  table.broadsheet td.c-remark{ text-align:left; font-weight:500; color:#334155; padding-left:10px; }
-  table.broadsheet thead th.c-remark{ text-align:left; padding-left:10px; }
+  table.broadsheet td.c-pct{ font-weight:800; color:#0b2f57; min-width:60px; }
+  table.broadsheet td.c-grade{ font-weight:800; min-width:40px; }
+  table.broadsheet td.c-pos{ font-weight:800; color:#6d28d9; min-width:50px; }
+  table.broadsheet td.c-remark{ text-align:left; font-weight:500; color:#334155; padding-left:10px; min-width:110px; }
+  table.broadsheet thead th.c-remark{ text-align:left; padding-left:10px; min-width:110px; writing-mode:horizontal-tb; transform:none; height:auto; }
 
   .gradeA{ color:#0f7a3d; }
   .gradeB{ color:#1d4ed8; }
@@ -160,13 +202,27 @@
     h2 { font-size: 12pt; } h3 { font-size: 9pt; } h4 { font-size: 9pt; margin:4pt 0 6pt; }
     .scroll { overflow:visible; border:none; max-height:none; }
     table.broadsheet { width:100%; min-width:0; font-size:6.5pt; }
-    table.broadsheet thead th { position:static !important; background:#d9d9d9 !important; color:#000 !important; font-size:6pt; }\n    table.broadsheet thead th.subj { writing-mode:vertical-rl; height:105pt; min-width:24pt; width:24pt; max-width:24pt; }
+    table.broadsheet thead th { position:static !important; background:#d9d9d9 !important; color:#000 !important; font-size:6pt; }
+    table.broadsheet thead th.subj {
+      writing-mode:vertical-rl;
+      transform:rotate(180deg);
+      height:100pt;
+      min-width:24pt; width:24pt; max-width:24pt;
+      font-size:6pt;
+      padding:2pt 1pt;
+    }
+    table.broadsheet thead th.subj .subj-label { max-height:90pt; font-size:6pt; }
+    table.broadsheet thead tr:nth-child(2) th {
+      writing-mode:horizontal-tb; transform:none; height:auto;
+      min-width:24pt; width:24pt; font-size:6pt;
+    }
     table.broadsheet td { position:static !important; border:0.4pt solid #555; padding:1.2pt 1.5pt; }
-    table.broadsheet td.c-name { background:#fff !important; font-size:8.5pt; font-weight:900; }
+    table.broadsheet td.c-name { background:#fff !important; font-size:9pt; font-weight:900; }
     table.broadsheet td.c-summary, table.broadsheet thead th.c-summary { background:#e5e5e5 !important; color:#000 !important; }
     table.broadsheet tbody tr:nth-child(even) td { background:#f2f2f2 !important; }
     thead { display:table-header-group; } tr { page-break-inside:avoid; }
     .gradeA,.gradeB,.gradeC,.gradeD,.gradeE,.gradeF { color:#000 !important; }
+    table.broadsheet td.c-score { width:24pt; min-width:24pt; }
   }
 </style>
 </head>
@@ -573,6 +629,7 @@ function render(){
 
   const {rows, visibleSubjects} = computeRows(level, arm, term, mode);
 
+  // Subject headers: vertical text with subj-label span
   document.getElementById('subjHead').innerHTML =
     visibleSubjects.map(s=>`<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
   document.getElementById('subjHead').setAttribute('colspan', visibleSubjects.length);
