@@ -420,7 +420,7 @@ function groupByLevel(data){
   return levels;
 }
 
-/* ===== ROBUST PARSER ===== */
+/* ===== STRICT COLUMN PARSER ===== */
 function parseClassRows(rows, merges){
   if(!rows || !rows.length) return null;
 
@@ -451,20 +451,24 @@ function parseClassRows(rows, merges){
   const aRow = assessRow >= 0 ? (rows[assessRow] || []) : [];
 
   const colMap = {};
-  let cur = null;
   let isProcessedFormat = false;
 
   const ignoreNames = ["S/N", "NAMES", "NAMES/MARKS OBTAINABLE", "SUBJECTS", "STUDENT", "NAME", ""];
 
+  /* Map columns directly: every subject column that has an assessment label under it, 
+     or every subject column in a processed sheet (1 score per subject). */
   for(let c=0; c<sRow.length; c++){
     const s = String(sRow[c] ?? "").trim();
-    if(s && !ASSESS_LABELS.includes(s) && !ignoreNames.includes(s.toUpperCase())) cur = s;
     const a = String(aRow[c] ?? "").trim();
 
-    if(cur && ASSESS_LABELS.includes(a)){
-      colMap[c] = {subject: cur, assess: a};
-    } else if(!aRow.length && cur && s && !ignoreNames.includes(s.toUpperCase())){
-      colMap[c] = {subject: cur, assess: "all"};
+    if(!s || ignoreNames.includes(s.toUpperCase()) || ASSESS_LABELS.includes(s)) continue;
+
+    if(ASSESS_LABELS.includes(a)){
+      /* Raw format: T1/T2/T3/Exam underneath */
+      colMap[c] = { subject: s, assess: a };
+    } else if(!aRow.length){
+      /* Processed format: Single score underneath */
+      colMap[c] = { subject: s, assess: "all" };
       isProcessedFormat = true;
     }
   }
@@ -475,6 +479,7 @@ function parseClassRows(rows, merges){
   if(isProcessedFormat){
     for(const c in colMap) colTerm[c] = "Term1";
   } else {
+    /* Raw format: Detect Term boundaries by the repeat of the very first subject */
     const subjectCols = [];
     for(let c=0; c<sRow.length; c++){
       const s = String(sRow[c] ?? "").trim();
