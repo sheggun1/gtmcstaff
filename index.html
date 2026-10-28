@@ -142,18 +142,60 @@
     /* title now lives inside the table head so it repeats on every page */
     .banner,.doc-title,.doc-meta{display:none !important}
 
-    .scroll{display:block;overflow:visible !important;border:none;max-height:none !important;min-height:0;border-radius:0}
-    table.broadsheet{width:100%;min-width:0;font-size:9pt;border-collapse:collapse}
+    /* The scroll wrapper must not create a fragmentation boundary */
+    .scroll{
+      display:block !important;
+      overflow:visible !important;
+      max-height:none !important;
+      min-height:0 !important;
+      height:auto !important;
+      border:none !important;
+      border-radius:0 !important;
+      position:static !important;
+      contain:none !important;
+      will-change:auto !important;
+    }
+
+    table.broadsheet{width:100% !important;min-width:0 !important;border-collapse:collapse !important;font-size:9pt;page-break-inside:auto !important;break-inside:auto !important}
 
     /* repeat title + subject header on every page */
-    table.broadsheet thead{display:table-header-group !important;position:static !important}
-    table.broadsheet thead tr{page-break-inside:avoid;break-inside:avoid}
-    table.broadsheet tbody tr{page-break-inside:avoid;break-inside:avoid}
+    table.broadsheet thead{display:table-header-group !important;position:static !important;page-break-inside:avoid !important;break-inside:avoid !important}
+    table.broadsheet thead tr{page-break-inside:avoid !important;break-inside:avoid !important}
+    table.broadsheet tbody tr{page-break-inside:avoid !important;break-inside:avoid !important}
 
-    table.broadsheet thead th{position:static !important;background:#e2e8f0 !important;color:#000 !important;border:1pt solid #000 !important;font-size:8pt;font-weight:900;padding:2pt 1.5pt}
-    table.broadsheet thead th.subj{height:130pt;width:26pt;min-width:26pt;max-width:26pt;padding:4pt 0}
-    table.broadsheet thead th.subj .subj-label{font-size:10pt;font-weight:900;color:#000}
-    table.broadsheet thead tr.max-row th{background:#f1f5f9 !important;font-size:8pt;font-weight:900;padding:1pt 0;position:static !important}
+    /* Kill every sticky/positioned header cell — any non-static position disables repetition */
+    table.broadsheet thead,
+    table.broadsheet thead tr,
+    table.broadsheet thead th,
+    table.broadsheet thead th.c-sn,
+    table.broadsheet thead th.c-name,
+    table.broadsheet thead th.c-summary,
+    table.broadsheet thead th.c-remark{
+      position:static !important;
+      left:auto !important;
+      top:auto !important;
+      z-index:auto !important;
+    }
+
+    table.broadsheet thead th{background:#e2e8f0 !important;color:#000 !important;border:1pt solid #000 !important;font-size:8pt;font-weight:900;padding:2pt 1.5pt}
+
+    /* Cap the subject-cell height so the header fits Chromium's repeating budget */
+    table.broadsheet thead th.subj{
+      height:90pt !important;
+      min-height:90pt !important;
+      max-height:90pt !important;
+      width:26pt !important;
+      min-width:26pt !important;
+      max-width:26pt !important;
+      padding:3pt 0 !important;
+    }
+    table.broadsheet thead th.subj .subj-label{
+      font-size:8.5pt !important;
+      font-weight:900 !important;
+      color:#000 !important;
+      line-height:1 !important;
+    }
+    table.broadsheet thead tr.max-row th{background:#f1f5f9 !important;font-size:8pt;font-weight:900;padding:1pt 0;position:static !important;border:1pt solid #000 !important}
 
     /* title block (higher specificity so the table borders/background don't apply) */
     table.broadsheet thead tr.print-title-row{display:table-row !important}
@@ -496,8 +538,6 @@ function parseClassRows(rows, merges){
       let val = row[ci];
 
       // --- FIX: proper empty-cell handling ---
-      // Empty string / whitespace / "#N/A" / null / undefined must be treated as "no score".
-      // Do NOT do Number("") which silently becomes 0.
       if (val === null || val === undefined) continue;
       if (typeof val === "string") {
         const s = val.trim();
@@ -508,9 +548,8 @@ function parseClassRows(rows, merges){
       } else if (typeof val === "number") {
         if (isNaN(val)) continue;
       } else {
-        continue; // booleans / objects etc. — not a valid score
+        continue;
       }
-      // ----------------------------------------
 
       if(!st[term][subject]) st[term][subject] = [null,null,null,null,null];
       if(assess === "all") st[term][subject][4] = val;
@@ -732,35 +771,45 @@ function metaParts(){
   return { session: getSession(), term: getTermLabel(), date: getDateLabel() };
 }
 
-/* ===== TABLE HEADER ===== */
+/* ===== TABLE HEADER — FLATTENED, NO ROWSPAN ===== */
 function buildHead(visibleSubjects, max){
   const subs = visibleSubjects.map(s =>
-    `<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
-  const maxCells = visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
+    `<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`
+  ).join('');
+
+  const maxCells = visibleSubjects.map(() => `<th class="maxcell">/${max}</th>`).join('');
+  const emptySum = `<th class="maxcell"></th>`;
 
   const { session, term, date } = metaParts();
-  const titleRows = `
-    <tr class="print-title-row"><th colspan="${visibleSubjects.length + 8}">
-      <div class="p-school">${esc(SCHOOL_NAME)}</div>
-      <div class="p-addr">${esc(SCHOOL_ADDR)}</div>
-      <div class="p-doc" id="printTitle">RESULT PUBLICATION</div>
-      <div class="p-meta">SESSION: ${esc(session)} &nbsp;•&nbsp; TERM: ${esc(term)} &nbsp;•&nbsp; DATE: ${esc(date)}</div>
-    </th></tr>`;
+  const titleRow = `
+    <tr class="print-title-row">
+      <th colspan="${visibleSubjects.length + 8}">
+        <div class="p-school">${esc(SCHOOL_NAME)}</div>
+        <div class="p-addr">${esc(SCHOOL_ADDR)}</div>
+        <div class="p-doc" id="printTitle">RESULT PUBLICATION</div>
+        <div class="p-meta">SESSION: ${esc(session)} &nbsp;•&nbsp; TERM: ${esc(term)} &nbsp;•&nbsp; DATE: ${esc(date)}</div>
+      </th>
+    </tr>`;
 
   document.getElementById('thead').innerHTML =
-    titleRows +
+    titleRow +
     `<tr>
-      <th class="c-sn" rowspan="2">S/N</th>
-      <th class="c-name" rowspan="2">NAMES / MARKS OBTAINABLE</th>
+      <th class="c-sn">S/N</th>
+      <th class="c-name">NAMES / MARKS OBTAINABLE</th>
       ${subs}
-      <th class="c-summary" rowspan="2">TOTAL MARKS OBTAINABLE</th>
-      <th class="c-summary" rowspan="2">TOTAL MARKS OBTAINED</th>
-      <th class="c-summary" rowspan="2">OVERALL PERCENTAGE</th>
-      <th class="c-summary" rowspan="2">OVERALL GRADE</th>
-      <th class="c-summary c-pos" rowspan="2">OVERALL CLASS POSITION</th>
-      <th class="c-remark" rowspan="2">REMARKS</th>
+      <th class="c-summary">TOTAL MARKS OBTAINABLE</th>
+      <th class="c-summary">TOTAL MARKS OBTAINED</th>
+      <th class="c-summary">OVERALL PERCENTAGE</th>
+      <th class="c-summary">OVERALL GRADE</th>
+      <th class="c-summary c-pos">OVERALL CLASS POSITION</th>
+      <th class="c-remark">REMARKS</th>
     </tr>
-    <tr class="max-row">${maxCells}</tr>`;
+    <tr class="max-row">
+      <th class="maxcell"></th>
+      <th class="maxcell"></th>
+      ${maxCells}
+      ${emptySum}${emptySum}${emptySum}${emptySum}${emptySum}${emptySum}
+    </tr>`;
 }
 
 /* ===== RENDER ===== */
