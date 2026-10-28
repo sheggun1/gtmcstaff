@@ -10,7 +10,7 @@
 <style>
   :root{
     --navy:#0b2f57; --ink:#0f172a; --muted:#64748b; --line:#d5dde8; --bg:#e9edf3; --gold:#c9a227;
-    --z:1; /* zoom factor for the broadsheet */
+    --z:1;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -21,6 +21,9 @@
   .banner h2{margin:0;font-size:1.35rem;letter-spacing:1.6px;font-weight:800}
   .banner h3{margin:4px 0 0;font-size:.78rem;font-weight:500;letter-spacing:1.2px;color:#cfe0f5}
   .doc-title{margin:0;padding:10px 16px;text-align:center;font-size:.9rem;text-transform:uppercase;letter-spacing:1.4px;font-weight:800;color:var(--navy);background:#f1f5fb;border-bottom:1px solid var(--line)}
+  .doc-meta{margin:0;padding:6px 16px 8px;text-align:center;font-size:.72rem;letter-spacing:.6px;font-weight:700;color:#475569;background:#f8fafc;border-bottom:1px solid var(--line);display:flex;gap:1.2rem;justify-content:center;flex-wrap:wrap}
+  .doc-meta span{white-space:nowrap}
+  .doc-meta b{color:var(--navy)}
   .body{padding:12px 16px 16px}
 
   /* ---------- Toolbar ---------- */
@@ -47,7 +50,7 @@
   .fsbar{display:none}
   body.fs{padding:0;background:#fff}
   body.fs .sheet{border-radius:0;box-shadow:none;min-height:100vh}
-  body.fs .banner,body.fs .doc-title,body.fs .legend{display:none}
+  body.fs .banner,body.fs .doc-title,body.fs .doc-meta,body.fs .legend{display:none}
   body.fs .body{padding:0}
   body.fs .fsbar{
     display:flex;align-items:center;gap:10px;padding:6px 12px;background:linear-gradient(135deg,#0b2f57,#1e4f8f);
@@ -63,7 +66,7 @@
   body.fs.showctl .scroll{max-height:calc(100vh - 190px)}
 
   /* ---------- Broadsheet ---------- */
-  .scroll{overflow:auto;border:1px solid #b9c4d3;border-radius:10px;max-height:calc(100vh - 360px);min-height:300px;background:#fff;position:relative;-webkit-overflow-scrolling:touch}
+  .scroll{overflow:auto;border:1px solid #b9c4d3;border-radius:10px;max-height:calc(100vh - 400px);min-height:300px;background:#fff;position:relative;-webkit-overflow-scrolling:touch}
   table.broadsheet{border-collapse:separate;border-spacing:0;width:100%;min-width:max-content;font-size:calc(.9rem * var(--z))}
   table.broadsheet thead{position:sticky;top:0;z-index:4}
   table.broadsheet thead th{
@@ -96,7 +99,6 @@
 
   table.broadsheet td.c-score{width:calc(40px * var(--z));min-width:calc(40px * var(--z));font-weight:900;font-size:calc(1.08rem * var(--z))}
   table.broadsheet td.c-score.empty{color:#cbd5e1;font-weight:400}
-  /* score heat: instant read of strong / weak subjects */
   table.broadsheet td.c-score.hi{background:#d9f5e3 !important;color:#065f2c}
   table.broadsheet td.c-score.mid{background:#fdf3cf !important;color:#7a4a05}
   table.broadsheet td.c-score.lo{background:#fddcdc !important;color:#a31515}
@@ -125,25 +127,28 @@
   .configbox button{cursor:pointer;border:none;border-radius:6px;font-weight:700;padding:.45rem .9rem;background:var(--navy);color:#fff}
   .configbox button.sec{background:#fff;color:var(--navy);border:1px solid #c5cfdc}
 
-  /* ---------- PRINT: very bold names and scores ---------- */
+  /* ---------- PRINT ---------- */
   @media print{
-    @page{size:A3 landscape;margin:8mm 7mm}
+    @page{size:A3 landscape;margin:8mm 7mm 10mm 7mm}
     html,body{height:auto;background:#fff !important;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     body.fs{padding:0}
-    .sheet{box-shadow:none;border-radius:0;min-height:0}
+    .sheet{box-shadow:none;border-radius:0;min-height:0;overflow:visible}
     .toolbar,.configbox,.fsbar,.legend{display:none !important}
-    .banner,.doc-title{display:block !important}
     .body{padding:0}
-    .banner{background:#fff !important;color:#000 !important;border-bottom:2pt solid #000;padding:2pt 0 4pt}
-    .banner h2{font-size:17pt;color:#000}
-    .banner h3{font-size:10pt;color:#000}
-    .doc-title{background:#fff;color:#000;font-size:11pt;padding:4pt 0;border-bottom:none}
+
+    .banner,.doc-title,.doc-meta{display:block !important}
+    .banner{background:#fff !important;color:#000 !important;border-bottom:2pt solid #000;padding:2pt 0 3pt}
+    .banner h2{font-size:16pt;color:#000}
+    .banner h3{font-size:9.5pt;color:#000}
+    .doc-title{background:#fff;color:#000;font-size:10.5pt;padding:3pt 0 2pt;border-bottom:none}
+    .doc-meta{background:#fff;color:#000;font-size:8.5pt;padding:1pt 0 3pt;border-bottom:1.5pt solid #000;gap:.9rem}
+
     .scroll{overflow:visible;border:none;max-height:none;border-radius:0}
     table.broadsheet{width:100%;min-width:0;font-size:9pt;border-collapse:collapse}
     table.broadsheet thead{display:table-header-group;position:static !important}
     table.broadsheet tr{page-break-inside:avoid}
     table.broadsheet thead th{position:static !important;background:#e2e8f0 !important;color:#000 !important;border:1pt solid #000 !important;font-size:8pt;font-weight:900;padding:2pt 1.5pt}
-    table.broadsheet thead th.subj{height:140pt;width:26pt;min-width:26pt;max-width:26pt;padding:4pt 0}
+    table.broadsheet thead th.subj{height:130pt;width:26pt;min-width:26pt;max-width:26pt;padding:4pt 0}
     table.broadsheet thead th.subj .subj-label{font-size:10pt;font-weight:900;color:#000}
     table.broadsheet thead tr.max-row th{background:#f1f5f9 !important;font-size:8pt;font-weight:900;padding:1pt 0;position:static !important}
     table.broadsheet tbody td{
@@ -154,32 +159,43 @@
     table.broadsheet td.c-name{font-size:12.5pt;font-weight:900 !important;min-width:0;color:#000 !important;letter-spacing:.2px}
     table.broadsheet td.c-score{font-size:12.5pt;font-weight:900 !important;width:26pt;min-width:26pt;color:#000 !important}
     table.broadsheet td.c-score.hi,table.broadsheet td.c-score.mid,table.broadsheet td.c-score.lo{background:inherit !important;color:#000 !important}
-    table.broadsheet td.c-score.empty{color:#777 !important;font-weight:700 !important}
+    table.broadsheet td.c-score.empty{color:#000 !important;font-weight:900 !important}
     table.broadsheet td.c-summary{background:#e8eef6 !important;font-weight:900 !important;color:#000 !important;font-size:11.5pt}
     table.broadsheet td.c-pct,table.broadsheet td.c-grade,table.broadsheet td.c-pos{font-size:12.5pt}
     table.broadsheet td.c-sn,table.broadsheet td.c-remark{color:#000 !important;font-weight:900 !important}
     table.broadsheet td.c-remark{font-size:10pt}
     .medal{background:none !important;padding:0}
     .gradeA,.gradeB,.gradeC,.gradeD,.gradeE,.gradeF{color:#000 !important}
+
+    .print-title-row th{
+      border:none !important;padding:0 !important;background:#fff !important;color:#000 !important;
+      text-align:center;font-weight:900
+    }
+    .print-title-row .p-school{font-size:15pt;letter-spacing:.6px;padding-top:2pt}
+    .print-title-row .p-addr{font-size:9pt;font-weight:700;padding-bottom:1pt}
+    .print-title-row .p-doc{font-size:10.5pt;letter-spacing:.8px;text-transform:uppercase;padding-bottom:1pt}
+    .print-title-row .p-meta{font-size:8.5pt;font-weight:700;padding-bottom:3pt;border-bottom:1.5pt solid #000 !important}
   }
 
-  /* ---------- PDF CLONE (offscreen render target) ---------- */
+  /* ---------- PDF CLONE ---------- */
   #pdfStage{position:fixed;left:-99999px;top:0;background:#fff;padding:0;z-index:-1;pointer-events:none}
   #pdfStage .pdf-sheet{background:#fff;padding:10px;width:max-content}
   #pdfStage .pdf-banner{text-align:center;border-bottom:2px solid #000;padding:2px 0 4px;background:#fff;color:#000}
   #pdfStage .pdf-banner h2{margin:0;font-size:17pt;font-weight:800;letter-spacing:.6px;color:#000}
   #pdfStage .pdf-banner h3{margin:2px 0 0;font-size:10pt;font-weight:500;letter-spacing:.5px;color:#000}
   #pdfStage .pdf-doc-title{text-align:center;font-size:11pt;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 0;color:#000;background:#fff}
+  #pdfStage .pdf-doc-meta{text-align:center;font-size:9pt;font-weight:700;letter-spacing:.5px;color:#000;padding:0 0 6px;border-bottom:1.5px solid #000}
+  #pdfStage .pdf-doc-meta span{margin:0 .8rem}
   #pdfStage table.pdf-table{border-collapse:collapse;font-size:9pt;width:max-content;table-layout:auto}
   #pdfStage table.pdf-table th,#pdfStage table.pdf-table td{border:1pt solid #000;padding:3.5pt 2pt;text-align:center;vertical-align:middle;color:#000;background:#fff;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:900}
   #pdfStage table.pdf-table thead th{background:#e2e8f0;font-size:8pt;font-weight:900;padding:2pt 1.5pt;text-transform:uppercase;letter-spacing:.2px}
-  #pdfStage table.pdf-table thead th.subj{height:140pt;width:26pt;min-width:26pt;max-width:26pt;padding:4pt 0;vertical-align:bottom;text-align:center}
+  #pdfStage table.pdf-table thead th.subj{height:130pt;width:26pt;min-width:26pt;max-width:26pt;padding:4pt 0;vertical-align:bottom;text-align:center}
   #pdfStage table.pdf-table thead th.subj .subj-label{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-size:10pt;font-weight:900;letter-spacing:.2px;line-height:1.1}
   #pdfStage table.pdf-table thead tr.max-row th{background:#f1f5f9;font-size:8pt;padding:1pt 0}
   #pdfStage table.pdf-table td.c-name{text-align:left;font-size:12.5pt;font-weight:900;padding-left:6pt;border-right:1.5pt solid #000}
   #pdfStage table.pdf-table td.c-sn{font-weight:900;font-size:11pt}
   #pdfStage table.pdf-table td.c-score{font-weight:900;font-size:12.5pt;width:26pt;min-width:26pt}
-  #pdfStage table.pdf-table td.c-score.empty{color:#777;font-weight:700}
+  #pdfStage table.pdf-table td.c-score.empty{color:#555;font-weight:900}
   #pdfStage table.pdf-table td.c-summary{background:#e8eef6;font-weight:900;font-size:11.5pt}
   #pdfStage table.pdf-table td.c-grade,#pdfStage table.pdf-table td.c-pos,#pdfStage table.pdf-table td.c-pct{font-weight:900;font-size:12.5pt}
   #pdfStage table.pdf-table td.c-remark{text-align:left;font-weight:900;font-size:10pt;padding-left:6pt}
@@ -193,8 +209,8 @@
     <h3>EMBASSY ISLAND, MOFERERE AREA, ADO-EKITI</h3>
   </div>
   <h4 class="doc-title" id="title">RESULT PUBLICATION</h4>
+  <div class="doc-meta" id="docMeta"></div>
 
-  <!-- shown only in full-screen mode -->
   <div class="fsbar">
     <div class="ft"><small id="fsSchool">GREATER TOMORROW MODEL COLLEGE</small><span id="fsTitle">RESULT PUBLICATION</span></div>
     <input id="fsSearch" placeholder="Find student…" style="padding:.38rem .6rem;border-radius:6px;border:none;width:170px;font-size:.85rem">
@@ -228,6 +244,8 @@
         <label>Arm</label><select id="arm"></select>
         <label>Term</label>
         <select id="term"><option>Term1</option><option>Term2</option><option>Term3</option></select>
+        <label>Session</label>
+        <input id="session" value="2025/2026" style="width:110px">
         <label>Assessment</label>
         <select id="assess">
           <option value="all">All (Sum of T1-T3+Exam)</option>
@@ -471,14 +489,24 @@ function parseClassRows(rows, merges){
       const {subject, assess} = colMap[c];
       let val = row[ci];
 
-      if(typeof val === "string"){
-        if(val.includes("#")) val = null;
-        else val = Number(val);
+      // --- FIX: proper empty-cell handling ---
+      // Empty string / whitespace / "#N/A" / null / undefined must be treated as "no score".
+      // Do NOT do Number("") which silently becomes 0.
+      if (val === null || val === undefined) continue;
+      if (typeof val === "string") {
+        const s = val.trim();
+        if (s === "" || s.includes("#")) continue;
+        const n = Number(s);
+        if (isNaN(n)) continue;
+        val = n;
+      } else if (typeof val === "number") {
+        if (isNaN(val)) continue;
+      } else {
+        continue; // booleans / objects etc. — not a valid score
       }
+      // ----------------------------------------
 
-      if(val === null || val === "" || isNaN(val)) continue;
-
-      if(!st[term][subject]) st[term][subject] = [null,null,null,null, null];
+      if(!st[term][subject]) st[term][subject] = [null,null,null,null,null];
       if(assess === "all") st[term][subject][4] = val;
       else st[term][subject][ASSESS_IDX[assess]] = val;
     }
@@ -552,7 +580,7 @@ async function loadFromScript(url){
 /* ===== HELPERS ===== */
 function displayName(subj){ return (CFG.subjectAliases && CFG.subjectAliases[subj]) ? CFG.subjectAliases[subj] : subj; }
 function gradeFor(pct){
-  if(pct == null) return {grade:"—", remark:"NO SCORES YET", cls:""};
+  if(pct == null) return {grade:"", remark:"NO SCORES YET", cls:""};
   const sorted = [...CFG.grades].sort((a,b)=>b.min - a.min);
   const band = sorted.find(b=>pct >= b.min) || sorted[sorted.length-1];
   const clsMap = {A:"gradeA", B:"gradeB", C:"gradeC", D:"gradeD", E:"gradeE", F:"gradeF"};
@@ -633,9 +661,38 @@ function computeRows(level, arm, term, mode){
   const rows = students.map(st => {
     const t = st[term] || {};
     const per = visible.map(subj => cellValue(t[subj] || null, mode));
-    const attempted = per.filter(v => v != null);
-    const obtained  = attempted.length ? attempted.reduce((a,b)=>a+b, 0) : null;
-    const attMax    = attempted.length * max;
+
+    let totalObtainable = 0;
+    let totalObtained = 0;
+    let hasAnyScore = false;
+
+    visible.forEach((subj, idx) => {
+      const arr = t[subj];
+      const val = per[idx];
+      if (val == null) return;
+      hasAnyScore = true;
+      totalObtained += val;
+
+      if (isProcessed) {
+        totalObtainable += (mode === "all") ? CFG.maxPerSubjectAll : max;
+      } else if (Array.isArray(arr)) {
+        if (mode === "all") {
+          let subjMax = 0;
+          if (arr[0] != null) subjMax += CFG.maxPerSubjectPerAssess;
+          if (arr[1] != null) subjMax += CFG.maxPerSubjectPerAssess;
+          if (arr[2] != null) subjMax += CFG.maxPerSubjectPerAssess;
+          if (arr[3] != null) subjMax += CFG.maxExam;
+          totalObtainable += subjMax || max;
+        } else {
+          totalObtainable += max;
+        }
+      } else {
+        totalObtainable += max;
+      }
+    });
+
+    const obtained = hasAnyScore ? totalObtained : null;
+    const attMax = hasAnyScore ? totalObtainable : 0;
     const pct = (obtained == null || attMax === 0) ? null : (obtained / attMax) * 100;
     return { name: st.name, arm: st._arm, perSubj: per, obtained, attMax, pct, grade: gradeFor(pct), position: null };
   });
@@ -652,13 +709,40 @@ function computeRows(level, arm, term, mode){
   return { rows, visibleSubjects: visible, max };
 }
 
+/* ===== META ===== */
+function getSession(){
+  const v = (document.getElementById('session').value || "").trim();
+  return v || "—";
+}
+function getTermLabel(){
+  const t = document.getElementById('term').value;
+  return t === "Term1" ? "FIRST TERM" : t === "Term2" ? "SECOND TERM" : "THIRD TERM";
+}
+function getDateLabel(){
+  const d = new Date();
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function metaParts(){
+  return { session: getSession(), term: getTermLabel(), date: getDateLabel() };
+}
+
 /* ===== TABLE HEADER ===== */
 function buildHead(visibleSubjects, max){
   const subs = visibleSubjects.map(s =>
     `<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
   const maxCells = visibleSubjects.map(()=>`<th>/${max}</th>`).join('');
 
+  const { session, term, date } = metaParts();
+  const titleRows = `
+    <tr class="print-title-row"><th colspan="${visibleSubjects.length + 8}">
+      <div class="p-school">${esc(SCHOOL_NAME)}</div>
+      <div class="p-addr">${esc(SCHOOL_ADDR)}</div>
+      <div class="p-doc" id="printTitle">RESULT PUBLICATION</div>
+      <div class="p-meta">SESSION: ${esc(session)} &nbsp;•&nbsp; TERM: ${esc(term)} &nbsp;•&nbsp; DATE: ${esc(date)}</div>
+    </th></tr>`;
+
   document.getElementById('thead').innerHTML =
+    titleRows +
     `<tr>
       <th class="c-sn" rowspan="2">S/N</th>
       <th class="c-name" rowspan="2">NAMES / MARKS OBTAINABLE</th>
@@ -687,8 +771,17 @@ function render(){
   document.getElementById('title').textContent = titleText;
   document.getElementById('fsTitle').textContent = titleText;
 
+  const { session, term: termLbl, date } = metaParts();
+  document.getElementById('docMeta').innerHTML =
+    `<span>SESSION: <b>${esc(session)}</b></span>` +
+    `<span>TERM: <b>${esc(termLbl)}</b></span>` +
+    `<span>DATE: <b>${esc(date)}</b></span>`;
+
   const {rows, visibleSubjects, max} = computeRows(level, arm, term, mode);
   buildHead(visibleSubjects, max);
+
+  const pt = document.getElementById('printTitle');
+  if(pt) pt.textContent = titleText;
 
   LAST_RENDER = { level, arm, term, mode, subjects: [...visibleSubjects], rows, max };
 
@@ -714,12 +807,13 @@ function render(){
     h += `<td class="c-name">${esc(r.name)}</td>`;
 
     r.perSubj.forEach(v => {
-      h += `<td class="c-score${v == null ? ' empty' : heat(v, max)}">${v == null ? '·' : v}</td>`;
+      const isBlank = (v === null || v === undefined);
+      h += `<td class="c-score${isBlank ? ' empty' : heat(v, max)}">${isBlank ? '' : v}</td>`;
     });
 
-    h += `<td class="c-summary">${r.attMax || '—'}</td>`;
-    h += `<td class="c-summary">${r.obtained == null ? '—' : r.obtained}</td>`;
-    h += `<td class="c-summary c-pct">${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</td>`;
+    h += `<td class="c-summary">${r.attMax || ''}</td>`;
+    h += `<td class="c-summary">${r.obtained == null ? '' : r.obtained}</td>`;
+    h += `<td class="c-summary c-pct">${r.pct == null ? '' : r.pct.toFixed(1) + '%'}</td>`;
     h += `<td class="c-summary c-grade ${r.grade.cls}">${esc(r.grade.grade)}</td>`;
     h += `<td class="c-summary c-pos">${medal(r.position)}</td>`;
     h += `<td class="c-remark">${esc(r.grade.remark)}</td>`;
@@ -729,7 +823,6 @@ function render(){
   });
 }
 
-/* click a row to pin/unpin a highlight */
 document.querySelector('#tbl tbody').addEventListener('click', e=>{
   const tr = e.target.closest('tr'); if(!tr || !tr.dataset.key) return;
   const was = tr.classList.contains('sel');
@@ -760,7 +853,6 @@ document.getElementById('fsCtl').addEventListener('click', ()=>document.body.cla
 document.addEventListener('fullscreenchange', ()=>{
   if(!document.fullscreenElement) document.body.classList.remove('fs','showctl');
 });
-/* keep the two search boxes in sync */
 document.getElementById('fsSearch').addEventListener('input', e=>{
   document.getElementById('search').value = e.target.value; render();
 });
@@ -859,6 +951,8 @@ function buildPdfStage(){
   const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
   const label = mode === "all" ? "TOTAL SCORES" : mode === "T2" ? "TEST 2" :
                 mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
+  const titleText = `RESULT PUBLICATION FOR ${scope} — ${label} — ${term}`;
+  const { session, term: termLbl, date } = metaParts();
 
   const stage = document.getElementById('pdfStage');
   stage.innerHTML = '';
@@ -873,8 +967,13 @@ function buildPdfStage(){
 
   const title = document.createElement('div');
   title.className = 'pdf-doc-title';
-  title.textContent = `RESULT PUBLICATION FOR ${scope} — ${label} — ${term}`;
+  title.textContent = titleText;
   sheet.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'pdf-doc-meta';
+  meta.innerHTML = `<span>SESSION: ${esc(session)}</span><span>TERM: ${esc(termLbl)}</span><span>DATE: ${esc(date)}</span>`;
+  sheet.appendChild(meta);
 
   const table = document.createElement('table');
   table.className = 'pdf-table';
@@ -902,11 +1001,12 @@ function buildPdfStage(){
     let h = `<td class="c-sn">${i + 1}</td>`;
     h += `<td class="c-name">${esc(r.name)}</td>`;
     r.perSubj.forEach(v => {
-      h += `<td class="c-score${v == null ? ' empty' : ''}">${v == null ? '·' : v}</td>`;
+      const isBlank = (v === null || v === undefined);
+      h += `<td class="c-score${isBlank ? ' empty' : ''}">${isBlank ? '' : v}</td>`;
     });
-    h += `<td class="c-summary">${r.attMax || '—'}</td>`;
-    h += `<td class="c-summary">${r.obtained == null ? '—' : r.obtained}</td>`;
-    h += `<td class="c-summary c-pct">${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</td>`;
+    h += `<td class="c-summary">${r.attMax || ''}</td>`;
+    h += `<td class="c-summary">${r.obtained == null ? '' : r.obtained}</td>`;
+    h += `<td class="c-summary c-pct">${r.pct == null ? '' : r.pct.toFixed(1) + '%'}</td>`;
     h += `<td class="c-summary c-grade">${esc(r.grade.grade)}</td>`;
     h += `<td class="c-summary c-pos">${esc(r.position)}</td>`;
     h += `<td class="c-remark">${esc(r.grade.remark)}</td>`;
@@ -919,8 +1019,32 @@ function buildPdfStage(){
   return stage;
 }
 
+function drawPdfHeaderOnPage(pdf, margin, drawW, headerHeightPt, titleText){
+  const { session, term: termLbl, date } = metaParts();
+  const line1 = SCHOOL_NAME;
+  const line2 = SCHOOL_ADDR;
+  const line3 = titleText;
+  const line4 = `SESSION: ${session}   •   TERM: ${termLbl}   •   DATE: ${date}`;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(15);
+  pdf.text(line1, margin + drawW / 2, margin + 4, { align: "center" });
+
+  pdf.setFontSize(9);
+  pdf.text(line2, margin + drawW / 2, margin + 18, { align: "center" });
+
+  pdf.setFontSize(11);
+  pdf.text(line3, margin + drawW / 2, margin + 34, { align: "center" });
+
+  pdf.setFontSize(9);
+  pdf.text(line4, margin + drawW / 2, margin + 48, { align: "center" });
+
+  pdf.setLineWidth(1.2);
+  pdf.line(margin, margin + 54, margin + drawW, margin + 54);
+}
+
 document.getElementById('pdfBtn').addEventListener('click', async ()=>{
-  const { rows, subjects } = LAST_RENDER;
+  const { rows, subjects, level, arm, term, mode } = LAST_RENDER;
   if(!rows.length || !subjects.length) return alert("No data to export.");
 
   const btn = document.getElementById('pdfBtn');
@@ -931,8 +1055,13 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
   try{
     const stage = buildPdfStage();
 
+    const scale = 2.5;
+    const theadEl = stage.querySelector('table.pdf-table thead');
+    const theadCssH = theadEl ? theadEl.getBoundingClientRect().height : 0;
+    const theadPx = Math.ceil(theadCssH * scale);
+
     const canvas = await html2canvas(stage, {
-      backgroundColor: "#ffffff", scale: 2.5, useCORS: true, logging: false,
+      backgroundColor: "#ffffff", scale, useCORS: true, logging: false,
       windowWidth: stage.scrollWidth, windowHeight: stage.scrollHeight
     });
 
@@ -944,37 +1073,63 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
     const margin = 18;
     const usableW = pageW - margin * 2;
     const usableH = pageH - margin * 2;
+    const headerHeightPt = 62;
+    const contentTopPt = margin + headerHeightPt;
 
     const pxToPt = usableW / canvas.width;
     const drawW  = canvas.width  * pxToPt;
     const drawH  = canvas.height * pxToPt;
 
-    if (drawH <= usableH){
+    const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
+    const label = mode === "all" ? "TOTAL SCORES" : mode === "T2" ? "TEST 2" :
+                  mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
+    const titleText = `RESULT PUBLICATION FOR ${scope} — ${label} — ${term}`;
+
+    if (drawH + headerHeightPt <= usableH){
+      drawPdfHeaderOnPage(pdf, margin, drawW, headerHeightPt, titleText);
       const img = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(img, "JPEG", margin, margin, drawW, drawH, undefined, "FAST");
+      pdf.addImage(img, "JPEG", margin, contentTopPt, drawW, drawH, undefined, "FAST");
     } else {
-      const pageContentHpx = Math.floor(usableH / pxToPt);
-      let offsetY = 0, pageIndex = 0;
-      while (offsetY < canvas.height){
-        const sliceH = Math.min(pageContentHpx, canvas.height - offsetY);
+      const pageContentHpx = Math.floor((usableH - headerHeightPt) / pxToPt);
+
+      let srcY = 0, pageIndex = 0;
+      while (srcY < canvas.height){
+        if (pageIndex > 0) pdf.addPage();
+        drawPdfHeaderOnPage(pdf, margin, drawW, headerHeightPt, titleText);
+
+        let takeH, outH, drawTheadPx = 0;
+        if (pageIndex === 0) {
+          takeH = Math.min(pageContentHpx, canvas.height - srcY);
+          outH = takeH;
+        } else {
+          takeH = Math.min(pageContentHpx - theadPx, canvas.height - srcY);
+          if (takeH <= 0) { takeH = Math.min(pageContentHpx, canvas.height - srcY); }
+          drawTheadPx = theadPx;
+          outH = drawTheadPx + takeH;
+        }
+
         const slice = document.createElement('canvas');
         slice.width = canvas.width;
-        slice.height = sliceH;
+        slice.height = outH;
         const ctx = slice.getContext('2d');
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, slice.width, slice.height);
-        ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+
+        if (drawTheadPx > 0) {
+          ctx.drawImage(canvas, 0, 0, canvas.width, drawTheadPx, 0, 0, canvas.width, drawTheadPx);
+        }
+        ctx.drawImage(canvas, 0, srcY, canvas.width, takeH, 0, drawTheadPx, canvas.width, takeH);
+
         const img = slice.toDataURL("image/jpeg", 0.95);
-        if (pageIndex > 0) pdf.addPage();
-        pdf.addImage(img, "JPEG", margin, margin, drawW, sliceH * pxToPt, undefined, "FAST");
-        offsetY += sliceH;
+        pdf.addImage(img, "JPEG", margin, contentTopPt, drawW, outH * pxToPt, undefined, "FAST");
+
+        srcY += takeH;
         pageIndex++;
       }
     }
 
-    const { level, arm, term, mode } = LAST_RENDER;
-    const scope = arm === "__all__" ? `${level}_ALL_ARMS` : `${level}${arm}`;
-    pdf.save(`RESULT_PUBLICATION_${scope.replace(/[^\w]+/g,"_")}_${mode}_${term}.pdf`);
+    const scopeFile = arm === "__all__" ? `${level}_ALL_ARMS` : `${level}${arm}`;
+    pdf.save(`RESULT_PUBLICATION_${scopeFile.replace(/[^\w]+/g,"_")}_${mode}_${term}.pdf`);
   } catch(err){
     console.error(err);
     alert("PDF export failed: " + err.message);
@@ -991,11 +1146,13 @@ document.getElementById('excelBtn').addEventListener('click', ()=>{
   const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
   const label = mode === "all" ? "TOTAL SCORES" : mode === "T2" ? "TEST 2" :
                 mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
+  const { session, term: termLbl, date } = metaParts();
 
   const aoa = [
     [SCHOOL_NAME],
     [SCHOOL_ADDR],
     [`RESULT PUBLICATION FOR ${scope} — ${label} — ${term}`],
+    [`SESSION: ${session}    TERM: ${termLbl}    DATE: ${date}`],
     [],
     ["S/N","NAMES / MARKS OBTAINABLE",
       ...subjects.map(s=>`${displayName(s)} (/${max})`),
@@ -1068,7 +1225,7 @@ document.getElementById('autoRefresh').addEventListener('change', e=>{
     refreshTimer = setInterval(()=>connectScript(LAST_URL), CFG.autoRefreshMs);
 });
 
-['level','arm','term','assess','search'].forEach(id=>{
+['level','arm','term','assess','search','session'].forEach(id=>{
   const el = document.getElementById(id);
   el.addEventListener(id === 'level' ? 'change' : 'input', ()=>{
     if(id === 'level') updateArmOptions();
