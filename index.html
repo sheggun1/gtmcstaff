@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root{
     --navy:#0b2f57; --navy-2:#123d6b; --navy-3:#1e3a8a;
@@ -77,15 +78,25 @@
 
   /* ---------- Broadsheet ---------- */
   .scroll{
-    overflow:auto; border:1px solid #b9c4d3; border-radius:10px;
-    max-height:calc(100vh - 330px); background:#fff;
+    overflow:auto;
+    border:1px solid #b9c4d3;
+    border-radius:10px;
+    max-height:calc(100vh - 330px);
+    background:#fff;
+    position:relative;
+    -webkit-overflow-scrolling:touch;
   }
   table.broadsheet{
     border-collapse:separate; border-spacing:0;
-    width:100%; font-size:.82rem;
+    width:100%; min-width:max-content; font-size:.82rem;
+  }
+  /* Sticky header as a single unit — avoids multi-row sticky bugs */
+  table.broadsheet thead{
+    position:sticky;
+    top:0;
+    z-index:4;
   }
   table.broadsheet thead th{
-    position:sticky; top:0; z-index:3;
     background:var(--navy); color:#fff;
     font-weight:700; font-size:.68rem; letter-spacing:.4px; text-transform:uppercase;
     padding:8px 6px; text-align:center; white-space:nowrap;
@@ -105,7 +116,7 @@
     line-height:1.1; text-transform:uppercase;
   }
   table.broadsheet thead tr.max-row th{
-    top:150px; background:var(--navy-3); font-size:.62rem; padding:3px 0;
+    background:var(--navy-3); font-size:.62rem; padding:3px 0;
     min-width:34px; width:34px;
   }
   table.broadsheet thead th.c-sn{left:0;z-index:5}
@@ -121,14 +132,22 @@
   table.broadsheet tbody tr:hover td{background:#e8f1fd}
 
   table.broadsheet td.c-sn{
-    position:sticky;left:0;z-index:2;background:inherit;
-    width:40px;min-width:40px;color:var(--muted);font-weight:700;
+    position:sticky; left:0; z-index:2;
+    background:#fff;
+    width:40px; min-width:40px; color:var(--muted); font-weight:700;
   }
   table.broadsheet td.c-name{
-    position:sticky;left:40px;z-index:2;background:inherit;
-    text-align:left;font-weight:900;font-size:.95rem;color:var(--ink);
-    min-width:220px;padding-left:12px;border-right:2px solid #cbd5e1;
+    position:sticky; left:40px; z-index:2;
+    background:#fff;
+    text-align:left; font-weight:900; font-size:.95rem; color:var(--ink);
+    min-width:220px; padding-left:12px; border-right:2px solid #cbd5e1;
   }
+  /* Keep sticky cells in sync with zebra + hover backgrounds */
+  table.broadsheet tbody tr:nth-child(even) td.c-sn,
+  table.broadsheet tbody tr:nth-child(even) td.c-name{ background:#f6f9fd; }
+  table.broadsheet tbody tr:hover td.c-sn,
+  table.broadsheet tbody tr:hover td.c-name{ background:#e8f1fd; }
+
   table.broadsheet td.c-arm{width:46px;min-width:40px;color:#475569;font-size:.74rem;font-weight:700}
   /* SCORES: bold */
   table.broadsheet td.c-score{width:34px;min-width:34px;font-weight:800;font-size:.9rem;color:var(--ink)}
@@ -172,7 +191,7 @@
     .doc-title{background:#fff;color:#000;font-size:10pt;padding:4pt 0;border-bottom:none}
     .scroll{overflow:visible;border:none;max-height:none;border-radius:0}
     table.broadsheet{width:100%;min-width:0;font-size:8pt;border-collapse:collapse}
-    table.broadsheet thead{display:table-header-group}
+    table.broadsheet thead{display:table-header-group;position:static !important}
     table.broadsheet tr{page-break-inside:avoid}
     table.broadsheet thead th{
       position:static !important;
@@ -202,6 +221,99 @@
     table.broadsheet td.c-sn,table.broadsheet td.c-arm,table.broadsheet td.c-remark{color:#000 !important;font-weight:700}
     .gradeA,.gradeB,.gradeC,.gradeD,.gradeE,.gradeF{color:#000 !important}
   }
+
+  /* ---------- PDF CLONE (offscreen render target) ---------- */
+  #pdfStage{
+    position:fixed;
+    left:-99999px;
+    top:0;
+    background:#fff;
+    padding:0;
+    z-index:-1;
+    pointer-events:none;
+  }
+  #pdfStage .pdf-sheet{
+    background:#fff;
+    padding:10px;
+    width:max-content;
+  }
+  #pdfStage .pdf-banner{
+    text-align:center;
+    border-bottom:2px solid #000;
+    padding:2px 0 4px;
+    background:#fff;
+    color:#000;
+  }
+  #pdfStage .pdf-banner h2{margin:0;font-size:15pt;font-weight:800;letter-spacing:.6px;color:#000}
+  #pdfStage .pdf-banner h3{margin:2px 0 0;font-size:9.5pt;font-weight:500;letter-spacing:.5px;color:#000}
+  #pdfStage .pdf-doc-title{
+    text-align:center;font-size:10pt;font-weight:800;letter-spacing:.6px;
+    text-transform:uppercase;padding:4px 0;color:#000;background:#fff;
+  }
+  #pdfStage table.pdf-table{
+    border-collapse:collapse;
+    font-size:8pt;
+    width:max-content;
+    table-layout:auto;
+  }
+  #pdfStage table.pdf-table th,
+  #pdfStage table.pdf-table td{
+    border:0.6pt solid #000;
+    padding:2pt 1.5pt;
+    text-align:center;
+    vertical-align:middle;
+    color:#000;
+    background:#fff;
+    white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  #pdfStage table.pdf-table thead th{
+    background:#d9d9d9;
+    font-size:7.5pt;
+    font-weight:800;
+    padding:2pt 1.5pt;
+    text-transform:uppercase;
+    letter-spacing:.2px;
+  }
+  #pdfStage table.pdf-table thead th.subj{
+    height:135pt;
+    width:22pt;min-width:22pt;max-width:22pt;
+    padding:4pt 0;
+    vertical-align:bottom;
+    background:#cfcfcf;
+    text-align:center;
+  }
+  #pdfStage table.pdf-table thead th.subj .subj-label{
+    display:inline-block;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    white-space:nowrap;
+    font-size:9pt;
+    font-weight:900;
+    letter-spacing:.2px;
+    line-height:1.1;
+  }
+  #pdfStage table.pdf-table thead tr.max-row th{
+    background:#e6e6e6;
+    font-size:7pt;
+    padding:1pt 0;
+  }
+  #pdfStage table.pdf-table td.c-name{
+    text-align:left;
+    font-size:9.5pt;
+    font-weight:900;
+    padding-left:6pt;
+    border-right:1.5pt solid #000;
+  }
+  #pdfStage table.pdf-table td.c-sn{font-weight:700;color:#000}
+  #pdfStage table.pdf-table td.c-arm{font-weight:700;color:#000}
+  #pdfStage table.pdf-table td.c-score{font-weight:900;font-size:9pt;width:22pt;min-width:22pt}
+  #pdfStage table.pdf-table td.c-score.empty{color:#777}
+  #pdfStage table.pdf-table td.c-summary{background:#e2e2e2;font-weight:900;color:#000}
+  #pdfStage table.pdf-table td.c-grade{font-weight:900}
+  #pdfStage table.pdf-table td.c-pos{font-weight:900}
+  #pdfStage table.pdf-table td.c-remark{text-align:left;font-weight:700;color:#000;padding-left:6pt}
+  #pdfStage table.pdf-table tbody tr:nth-child(even) td{background:#f0f0f0}
 </style>
 </head>
 <body>
@@ -299,6 +411,9 @@
     </div>
   </div>
 </div>
+
+<!-- Offscreen stage used to build the exact print-clone for PDF export -->
+<div id="pdfStage" aria-hidden="true"></div>
 
 <script>
 /* =====================================================================
@@ -742,40 +857,155 @@ document.getElementById('resetConfig').addEventListener('click', ()=>{
 /* ===== EXPORTS ===== */
 document.getElementById('printBtn').addEventListener('click', ()=>window.print());
 
-document.getElementById('pdfBtn').addEventListener('click', ()=>{
-  const {jsPDF} = window.jspdf;
-  const doc = new jsPDF({orientation:"landscape", unit:"pt", format:"a3"});
+/* ---------- PDF: builds an offscreen table that mirrors the PRINT layout exactly,
+   then rasterises it at high DPI and slices it across A3 landscape pages. ---------- */
+function buildPdfStage(){
   const { level, arm, term, mode, subjects, rows, max } = LAST_RENDER;
-  if(!rows.length || !subjects.length) return alert("No data to export.");
   const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
-  const label = mode === "all" ? "ALL" : mode === "T2" ? "TEST 2" :
+  const label = mode === "all" ? "ALL ASSESSMENTS" : mode === "T2" ? "TEST 2" :
                 mode === "T1" ? "TEST 1" : mode === "T3" ? "TEST 3" : "EXAM";
 
-  const head = [["S/N","NAME","ARM",
-    ...subjects.map(s=>`${displayName(s)}\n/${max}`),
-    "Obtained","÷ by","Overall %","Grade","Position","Remark"]];
-  const body = rows.map((r, i)=>{
-    const l = [i + 1, r.name, r.arm];
-    r.perSubj.forEach(v => l.push(v == null ? "·" : v));
-    l.push(r.obtained == null ? "—" : r.obtained,
-           r.attMax || "—",
-           r.pct == null ? "—" : r.pct.toFixed(1) + "%",
-           r.grade.grade, r.position, r.grade.remark);
-    return l;
-  });
+  const stage = document.getElementById('pdfStage');
+  stage.innerHTML = '';
 
-  const W = doc.internal.pageSize.getWidth();
-  doc.setFontSize(14); doc.text(SCHOOL_NAME, W/2, 30, {align:"center"});
-  doc.setFontSize(10); doc.text(SCHOOL_ADDR, W/2, 46, {align:"center"});
-  doc.setFontSize(11); doc.text(`BROADSHEET — ${scope} — ${label} — ${term}`, W/2, 64, {align:"center"});
-  doc.autoTable({
-    head, body, startY: 78,
-    styles: { fontSize: 6, cellPadding: 2, overflow: "linebreak" },
-    headStyles: { fillColor: [11,47,87], textColor: 255, fontStyle: "bold" },
-    columnStyles: { 0:{cellWidth:20}, 1:{cellWidth:100}, 2:{cellWidth:26} },
-    margin: { left: 10, right: 10 }
+  const sheet = document.createElement('div');
+  sheet.className = 'pdf-sheet';
+
+  const banner = document.createElement('div');
+  banner.className = 'pdf-banner';
+  banner.innerHTML = `<h2>${esc(SCHOOL_NAME)}</h2><h3>${esc(SCHOOL_ADDR)}</h3>`;
+  sheet.appendChild(banner);
+
+  const title = document.createElement('div');
+  title.className = 'pdf-doc-title';
+  title.textContent = `BROADSHEET — ${scope} — ${label} — ${term}`;
+  sheet.appendChild(title);
+
+  const table = document.createElement('table');
+  table.className = 'pdf-table';
+
+  /* HEAD: same two-row structure as print (subjects vertical + /max row) */
+  const thead = document.createElement('thead');
+  let h1 = `<tr>
+    <th rowspan="2">S/N</th>
+    <th rowspan="2">Student Name</th>
+    <th rowspan="2">Arm</th>`;
+  subjects.forEach(s=>{
+    h1 += `<th class="subj"><span class="subj-label">${esc(displayName(s))}</span></th>`;
   });
-  doc.save(`${scope.replace(/[^\w]+/g,"_")}_${mode}_${term}_broadsheet.pdf`);
+  h1 += `<th rowspan="2">Obtained</th>
+         <th rowspan="2">÷ by</th>
+         <th rowspan="2">Overall %</th>
+         <th rowspan="2">Grade</th>
+         <th rowspan="2">Position</th>
+         <th rowspan="2">Remark</th></tr>`;
+  const maxCells = subjects.map(()=>`<th>/${max}</th>`).join('');
+  thead.innerHTML = h1 + `<tr class="max-row">${maxCells}</tr>`;
+  table.appendChild(thead);
+
+  /* BODY: identical cell classes + values to the on-screen/print table */
+  const tbody = document.createElement('tbody');
+  rows.forEach((r, i)=>{
+    const tr = document.createElement('tr');
+    let h = `<td class="c-sn">${i + 1}</td>`;
+    h += `<td class="c-name">${esc(r.name)}</td>`;
+    h += `<td class="c-arm">${esc(r.arm)}</td>`;
+    r.perSubj.forEach(v => {
+      h += `<td class="c-score${v == null ? ' empty' : ''}">${v == null ? '·' : v}</td>`;
+    });
+    h += `<td class="c-summary">${r.obtained == null ? '—' : r.obtained}</td>`;
+    h += `<td class="c-summary">${r.attMax || '—'}</td>`;
+    h += `<td class="c-summary c-pct">${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</td>`;
+    h += `<td class="c-summary c-grade">${esc(r.grade.grade)}</td>`;
+    h += `<td class="c-summary c-pos">${esc(r.position)}</td>`;
+    h += `<td class="c-remark">${esc(r.grade.remark)}</td>`;
+    tr.innerHTML = h;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  sheet.appendChild(table);
+  stage.appendChild(sheet);
+  return stage;
+}
+
+document.getElementById('pdfBtn').addEventListener('click', async ()=>{
+  const { rows, subjects } = LAST_RENDER;
+  if(!rows.length || !subjects.length) return alert("No data to export.");
+
+  const btn = document.getElementById('pdfBtn');
+  const oldLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "⏳ Building…";
+
+  try{
+    const stage = buildPdfStage();
+
+    /* Render at 2.5x scale for crisp print-quality text */
+    const canvas = await html2canvas(stage, {
+      backgroundColor: "#ffffff",
+      scale: 2.5,
+      useCORS: true,
+      logging: false,
+      windowWidth: stage.scrollWidth,
+      windowHeight: stage.scrollHeight
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:"landscape", unit:"pt", format:"a3"});
+
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 18;                    /* pt */
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2;
+
+    /* Fit width: if the table is wider than the page, scale it down to fit */
+    const pxToPt = usableW / canvas.width;
+    const drawW  = canvas.width  * pxToPt;
+    const drawH  = canvas.height * pxToPt;
+
+    if (drawH <= usableH){
+      /* Fits on a single page */
+      const img = canvas.toDataURL("image/jpeg", 0.95);
+      pdf.addImage(img, "JPEG", margin, margin, drawW, drawH, undefined, "FAST");
+    } else {
+      /* Slice vertically across multiple A3 landscape pages */
+      const pageContentHpx = Math.floor(usableH / pxToPt);
+      let offsetY = 0;
+      let pageIndex = 0;
+      while (offsetY < canvas.height){
+        const sliceH = Math.min(pageContentHpx, canvas.height - offsetY);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = sliceH;
+        const ctx = slice.getContext('2d');
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(
+          canvas,
+          0, offsetY, canvas.width, sliceH,
+          0, 0, canvas.width, sliceH
+        );
+        const img = slice.toDataURL("image/jpeg", 0.95);
+        if (pageIndex > 0) pdf.addPage();
+        const sliceHpt = sliceH * pxToPt;
+        pdf.addImage(img, "JPEG", margin, margin, drawW, sliceHpt, undefined, "FAST");
+        offsetY += sliceH;
+        pageIndex++;
+      }
+    }
+
+    const { level, arm, term, mode } = LAST_RENDER;
+    const scope = arm === "__all__" ? `${level}_ALL_ARMS` : `${level}${arm}`;
+    pdf.save(`${scope.replace(/[^\w]+/g,"_")}_${mode}_${term}_broadsheet.pdf`);
+  } catch(err){
+    console.error(err);
+    alert("PDF export failed: " + err.message);
+  } finally {
+    document.getElementById('pdfStage').innerHTML = '';
+    btn.disabled = false;
+    btn.textContent = oldLabel;
+  }
 });
 
 document.getElementById('excelBtn').addEventListener('click', ()=>{
