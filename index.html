@@ -6,7 +6,6 @@
 <title>Result Publication — Greater Tomorrow Model College</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root{
@@ -90,7 +89,6 @@
     border-collapse:separate; border-spacing:0;
     width:100%; min-width:max-content; font-size:.82rem;
   }
-  /* Sticky header as a single unit — avoids multi-row sticky bugs */
   table.broadsheet thead{
     position:sticky;
     top:0;
@@ -103,7 +101,6 @@
     border-right:1px solid rgba(255,255,255,.18);
     border-bottom:1px solid rgba(255,255,255,.18);
   }
-  /* Subject header cells: rotated text reading bottom-to-top */
   table.broadsheet thead th.subj{
     background:var(--navy-2);
     height:150px; width:34px; min-width:34px; max-width:34px;
@@ -142,14 +139,12 @@
     text-align:left; font-weight:900; font-size:.95rem; color:var(--ink);
     min-width:220px; padding-left:12px; border-right:2px solid #cbd5e1;
   }
-  /* Keep sticky cells in sync with zebra + hover backgrounds */
   table.broadsheet tbody tr:nth-child(even) td.c-sn,
   table.broadsheet tbody tr:nth-child(even) td.c-name{ background:#f6f9fd; }
   table.broadsheet tbody tr:hover td.c-sn,
   table.broadsheet tbody tr:hover td.c-name{ background:#e8f1fd; }
 
   table.broadsheet td.c-arm{width:46px;min-width:40px;color:#475569;font-size:.74rem;font-weight:700}
-  /* SCORES: bold */
   table.broadsheet td.c-score{width:34px;min-width:34px;font-weight:800;font-size:.9rem;color:var(--ink)}
   table.broadsheet td.c-score.empty{color:#b8c3d1;font-weight:700}
   table.broadsheet td.c-summary{
@@ -417,11 +412,11 @@
 
 <script>
 /* =====================================================================
-   BACKUP KEY — must match Script Property BACKUP_API_KEY in Apps Script
+   BACKUP KEY — only used by the optional Apps Script path.
    ===================================================================== */
 const BACKUP_API_KEY = 'gtmc-2026-a7f3c9e2b8d14f60';
 
-/* ===== CONFIG — matches backend ReportTemplate.gradeScale ===== */
+/* ===== CONFIG ===== */
 const DEFAULT_CONFIG = {
   grades: [
     { min: 80, grade: "A", remark: "Excellent" },
@@ -463,6 +458,7 @@ function saveConfig(){
 
 const SKIP_SHEETS = ["Users","Submissions","Students","Scores","Subjects","Classes","Audit"];
 const ASSESS_IDX = {T1:0,T2:1,T3:2,Exam:3};
+const TERM_NAMES = ["Term1","Term2","Term3"];
 const SCHOOL_NAME = "GREATER TOMORROW MODEL COLLEGE";
 const SCHOOL_ADDR = "EMBASSY ISLAND, MOFERERE AREA, ADO-EKITI";
 
@@ -481,46 +477,98 @@ function groupByLevel(data){
   return levels;
 }
 
-/* ===== PARSER ===== */
-function parseClassRows(rows){
-  let idRow=-1,subjRow=-1,assessRow=-1;
-  for(let i=0;i<Math.min(rows.length,8);i++){
+/* ===== PARSER =====
+   Reads the row-1 term header (Term1/Term2/Term3, merged) to know exactly
+   which columns belong to which term. Falls back to per-block T1 detection
+   when merges aren't available (e.g. Apps Script JSON path).
+   This fixes senior sheets where subjects like Biology/Physics were dropped. */
+function parseClassRows(rows, merges){
+  if(!rows || !rows.length) return null;
+
+  const ASSESS_LABELS = ["T1","T2","T3","Exam"];
+  let idRow=-1, subjRow=-1, assessRow=-1, termRow=-1;
+
+  for(let i=0;i<Math.min(rows.length,10);i++){
     const r=(rows[i]||[]).map(c=>String(c??"").trim());
-    if(r.includes("ID")&&r.some(c=>c.toLowerCase()==="name")) idRow=i;
+    if(r.includes("ID") && r.some(c=>c.toLowerCase()==="name")) idRow=i;
+    if(r.includes("T1") && r.includes("Exam")) assessRow=i;
     if(r.includes("English Language")) subjRow=i;
-    if(r.includes("T1")&&r.includes("Exam")) assessRow=i;
+    if(r.includes("Term1")) termRow=i;
   }
-  if(idRow<0||subjRow<0||assessRow<0) return null;
-  const sRow=rows[subjRow]||[], aRow=rows[assessRow]||[];
-  const colMap={}; let cur=null;
+  if(idRow<0 || subjRow<0 || assessRow<0) return null;
+
+  const sRow = rows[subjRow] || [];
+  const aRow = rows[assessRow] || [];
+
+  /* Map each assessment column to its subject + assessment letter. */
+  const colMap = {};
+  let cur = null;
   for(let c=0;c<sRow.length;c++){
-    const s=String(sRow[c]??"").trim();
-    if(s&&!["T1","T2","T3","Exam"].includes(s)) cur=s;
-    const a=String(aRow[c]??"").trim();
-    if(cur&&["T1","T2","T3","Exam"].includes(a)) colMap[c]={subject:cur,assess:a};
+    const s = String(sRow[c] ?? "").trim();
+    if(s && !ASSESS_LABELS.includes(s)) cur = s;
+    const a = String(aRow[c] ?? "").trim();
+    if(cur && ASSESS_LABELS.includes(a)) colMap[c] = {subject: cur, assess: a};
   }
-  const engCols=[];
-  for(let c=0;c<sRow.length;c++) if(String(sRow[c]??"").trim()==="English Language") engCols.push(c);
-  const bounds=[];
-  if(engCols.length>=1) bounds.push({term:"Term1",start:engCols[0],end:engCols[1]??sRow.length});
-  if(engCols.length>=2) bounds.push({term:"Term2",start:engCols[1],end:engCols[2]??sRow.length});
-  if(engCols.length>=3) bounds.push({term:"Term3",start:engCols[2],end:sRow.length});
-  const subjects=[]; for(const c in colMap){const s=colMap[c].subject;if(!subjects.includes(s))subjects.push(s);}
-  const students=[];
-  for(let r=idRow+1;r<rows.length;r++){
-    const row=rows[r]||[], name=row[1]; if(!name) continue;
-    const st={name:String(name).trim(),Term1:{},Term2:{},Term3:{}};
+
+  /* Assign each column to a term. */
+  const colTerm = {};
+
+  /* Strategy A: merged ranges on the term row (Excel upload).
+     The merge anchor holds the label; all columns inside inherit it. */
+  if(merges && merges.length && termRow >= 0){
+    merges.forEach(m=>{
+      if(m.s.r !== termRow) return;
+      const label = String((rows[m.s.r] || [])[m.s.c] ?? "").trim();
+      if(!TERM_NAMES.includes(label)) return;
+      for(let c=m.s.c; c<=m.e.c; c++) colTerm[c] = label;
+    });
+  }
+
+  /* Strategy B: no merges available — detect blocks by T1 columns. */
+  if(!Object.keys(colTerm).length){
+    const t1Cols = Object.keys(colMap)
+      .map(Number)
+      .filter(c => colMap[c].assess === "T1")
+      .sort((a,b)=>a-b);
+    t1Cols.forEach((startCol, idx)=>{
+      const term = TERM_NAMES[idx];
+      if(!term) return;
+      const endCol = idx+1 < t1Cols.length ? t1Cols[idx+1] : sRow.length;
+      for(let c=startCol; c<endCol; c++) colTerm[c] = term;
+    });
+  }
+
+  if(!Object.keys(colTerm).length) return null;
+
+  /* Union of subject names in first-seen order. */
+  const subjects = [];
+  for(const c in colMap){
+    const s = colMap[c].subject;
+    if(!subjects.includes(s)) subjects.push(s);
+  }
+
+  /* Read students. */
+  const students = [];
+  for(let r=idRow+1; r<rows.length; r++){
+    const row = rows[r] || [];
+    const name = row[1];
+    if(!name) continue;
+    const st = { name: String(name).trim(), Term1: {}, Term2: {}, Term3: {} };
     for(const c in colMap){
-      const ci=+c,{subject,assess}=colMap[c],val=row[ci];
-      if(val===null||val===""||val===undefined||isNaN(val)) continue;
-      const b=bounds.find(x=>ci>=x.start&&ci<x.end); if(!b) continue;
-      if(!st[b.term][subject]) st[b.term][subject]=[null,null,null,null];
-      st[b.term][subject][ASSESS_IDX[assess]]=Number(val);
+      const ci = +c;
+      const term = colTerm[ci];
+      if(!term) continue;
+      const {subject, assess} = colMap[c];
+      const val = row[ci];
+      if(val===null || val==="" || val===undefined || isNaN(val)) continue;
+      if(!st[term][subject]) st[term][subject] = [null,null,null,null];
+      st[term][subject][ASSESS_IDX[assess]] = Number(val);
     }
-    const has=["Term1","Term2","Term3"].some(t=>Object.keys(st[t]).length>0);
+    const has = TERM_NAMES.some(t=>Object.keys(st[t]).length>0);
     if(has) students.push(st);
   }
-  return {subjects,students};
+
+  return { subjects, students };
 }
 
 /* ===== LOADERS ===== */
@@ -533,8 +581,10 @@ function loadExcel(file){
         const out={}; let subjects=[];
         wb.SheetNames.forEach(n=>{
           if(SKIP_SHEETS.includes(n)) return;
-          const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:null});
-          const p=parseClassRows(rows);
+          const ws = wb.Sheets[n];
+          const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+          const merges = ws['!merges'] || [];
+          const p=parseClassRows(rows, merges);
           if(p&&p.students.length){ out[n]=p.students; if(!subjects.length) subjects=p.subjects; }
         });
         res({data:out,subjects});
@@ -545,7 +595,6 @@ function loadExcel(file){
   });
 }
 
-/* Build the fetch URL with the backup key appended. */
 function buildScriptUrl(url){
   let u = String(url || '').trim();
   if(!u) throw new Error("Paste the Web App /exec URL first");
@@ -577,7 +626,9 @@ async function loadFromScript(url){
   if(json && json.error) throw new Error(json.error);
   const out={}; let subjects=[];
   Object.keys(json).forEach(name=>{
-    const p = parseClassRows(json[name]);
+    /* Apps Script returns values only; merges are already flattened,
+       so pass null for merges and rely on Strategy B. */
+    const p = parseClassRows(json[name], null);
     if(p && p.students.length){
       out[name] = p.students;
       if(!subjects.length) subjects = p.subjects;
@@ -616,7 +667,6 @@ function esc(s){
   }[c]));
 }
 
-/* Denominator for the current assessment mode. */
 function currentMax(mode){
   if(mode === "all")   return CFG.maxPerSubjectAll;
   if(mode === "Exam")  return CFG.maxExam;
@@ -650,7 +700,7 @@ function getStudentsFor(level, arm){
   return (levels[level][arm] || []).map(st=>({...st, _arm:arm}));
 }
 
-/* ===== COMPUTE — per-student denominator, union of subjects ===== */
+/* ===== COMPUTE ===== */
 function computeRows(level, arm, term, mode){
   const students = getStudentsFor(level, arm);
   const max = currentMax(mode);
@@ -669,9 +719,7 @@ function computeRows(level, arm, term, mode){
     const attempted = per.filter(v => v != null);
     const obtained  = attempted.length ? attempted.reduce((a,b)=>a+b, 0) : null;
     const attMax    = attempted.length * max;
-    const pct = (obtained == null || attMax === 0)
-      ? null
-      : (obtained / attMax) * 100;
+    const pct = (obtained == null || attMax === 0) ? null : (obtained / attMax) * 100;
 
     return {
       name: st.name,
@@ -698,7 +746,7 @@ function computeRows(level, arm, term, mode){
   return { rows, visibleSubjects: visible };
 }
 
-/* ===== TABLE HEADER (subjects written vertically; clear on screen & print) ===== */
+/* ===== TABLE HEADER ===== */
 function buildHead(visibleSubjects, max){
   const subs = visibleSubjects.map(s =>
     `<th class="subj" title="${esc(s)}"><span class="subj-label">${esc(displayName(s))}</span></th>`).join('');
@@ -735,9 +783,7 @@ function render(){
       mode === "T3" ? "TEST 3" : "EXAM"} — ${term}`;
 
   const {rows, visibleSubjects} = computeRows(level, arm, term, mode);
-
   buildHead(visibleSubjects, max);
-
   LAST_RENDER = { level, arm, term, mode, subjects: [...visibleSubjects], rows, max };
 
   const tb = document.querySelector('#tbl tbody');
@@ -857,8 +903,6 @@ document.getElementById('resetConfig').addEventListener('click', ()=>{
 /* ===== EXPORTS ===== */
 document.getElementById('printBtn').addEventListener('click', ()=>window.print());
 
-/* ---------- PDF: builds an offscreen table that mirrors the PRINT layout exactly,
-   then rasterises it at high DPI and slices it across A3 landscape pages. ---------- */
 function buildPdfStage(){
   const { level, arm, term, mode, subjects, rows, max } = LAST_RENDER;
   const scope = arm === "__all__" ? `${level} — ALL ARMS` : `${level}${arm}`;
@@ -884,7 +928,6 @@ function buildPdfStage(){
   const table = document.createElement('table');
   table.className = 'pdf-table';
 
-  /* HEAD: same two-row structure as print (subjects vertical + /max row) */
   const thead = document.createElement('thead');
   let h1 = `<tr>
     <th rowspan="2">S/N</th>
@@ -903,7 +946,6 @@ function buildPdfStage(){
   thead.innerHTML = h1 + `<tr class="max-row">${maxCells}</tr>`;
   table.appendChild(thead);
 
-  /* BODY: identical cell classes + values to the on-screen/print table */
   const tbody = document.createElement('tbody');
   rows.forEach((r, i)=>{
     const tr = document.createElement('tr');
@@ -940,7 +982,6 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
   try{
     const stage = buildPdfStage();
 
-    /* Render at 2.5x scale for crisp print-quality text */
     const canvas = await html2canvas(stage, {
       backgroundColor: "#ffffff",
       scale: 2.5,
@@ -955,21 +996,18 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
 
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 18;                    /* pt */
+    const margin = 18;
     const usableW = pageW - margin * 2;
     const usableH = pageH - margin * 2;
 
-    /* Fit width: if the table is wider than the page, scale it down to fit */
     const pxToPt = usableW / canvas.width;
     const drawW  = canvas.width  * pxToPt;
     const drawH  = canvas.height * pxToPt;
 
     if (drawH <= usableH){
-      /* Fits on a single page */
       const img = canvas.toDataURL("image/jpeg", 0.95);
       pdf.addImage(img, "JPEG", margin, margin, drawW, drawH, undefined, "FAST");
     } else {
-      /* Slice vertically across multiple A3 landscape pages */
       const pageContentHpx = Math.floor(usableH / pxToPt);
       let offsetY = 0;
       let pageIndex = 0;
